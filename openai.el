@@ -111,7 +111,6 @@ Return the response which decoded by `json-read'."
 				   uri &optional keywords content-type method)
   "A helper macro for define OpenAI API function."
   `(prog1 (defun ,(intern (concat "openai-" name)) ,arglist
-	    ,docstring
 	    (openai--make-request ,uri
 				  (funcall #'openai--preprocess-request-data
 					   ,(cadr arglist) ,keywords ,content-type)
