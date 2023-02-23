@@ -54,7 +54,9 @@ Return the response which decoded by `json-read'."
   (let ((url-request-method (or method (if data "POST" "GET")))
 	(url-request-extra-headers
 	 (append
-	  `(("Authorization" . ,(concat "Bearer " openai-api-key)))
+	  `(("Authorization" . ,(encode-coding-string
+				 (concat "Bearer " openai-api-key)
+				 'utf-8)))
 	  (if openai-organization
 	      `(("OpenAI-Organization" . ,openai-organization)))
 	  (if data
@@ -70,8 +72,8 @@ Return the response which decoded by `json-read'."
 				 'utf-8)))))
     (with-current-buffer (url-retrieve-synchronously
 			  (concat "https://api.openai.com" uri))
-      (goto-char url-http-end-of-headers)
-      (json-read))))
+      (json-read-from-string
+       (decode-coding-region url-http-end-of-headers (point-max) 'utf-8 t)))))
 
 (defun openai--preprocess-request-data (&optional args keywords content-type)
   "Preprocess request body data."
