@@ -316,6 +316,136 @@ Return the response which decoded by `json-read'."
 		      "/v1/moderations"
 		      keywords))
 
+;;; Commands
+
+;; General functions
+
+(defun openai--region-string ()
+  "Return string in region."
+  (if (use-region-p) (buffer-substring-no-properties
+		      (use-region-beginning)
+		      (use-region-end))))
+
+(defun openai--region-string-or-sentence-at-point ()
+  "Return string in region if use region, or sentence at point."
+  (or (openai--region-stirng)
+      (sentence-at-point t)))
+
+(defun openai--nth-sentence-after-point (&optional nth)
+  "Return NTH sentence after point, say 0 means sentence at point."
+  (let ((position (point)))
+    (backward-char)
+    (forward-sentence (+ (or nth 0) 1))
+    (if (= (point) (point-max)) (backward-char))
+    (prog1 (sentence-at-point t)
+      (goto-char position))))
+
+;; Text completion
+
+(defcustom openai-complete-text-default-args
+  '(:model "text-davinci-003"
+    :prompt nil :suffix nil :max_tokens 125
+    :temperature nil :top_p nil :n nil
+    :stream nil :logprobs nil :stop nil)
+  "Default args for text completion"
+  :type '(plist))
+
+(defun openai-complete-text (prompt &optional max_tokens
+				      buffer-or-name position
+				      &rest args)
+  "Complete text for given PROMPT (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION.
+Return the response which decoded by `json-read'.
+
+In an interactive call, default value of PROMPT is read from region or sentence at point,
+and use numeric prefix argument to specify MAX_TOKENS.
+
+If BUFFER-OR-NAME not specified, use current buffer.
+If POSITION is not specified, and use current buffer while PROMPT is default, it will be inserted properly.
+
+ARGS will override `openai-complete-text-default-args', see `openai-create-completion' for details."
+  (interactive (list (read-string
+		      (format "Input the prompt (%s): "
+			      (openai--region-string-or-sentence-at-point))
+		      nil nil
+		      (openai--region-string-or-sentence-at-point))
+		     current-prefix-arg))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if (and (not position)
+	     (not buffer-or-name)
+	     (string= prompt (openai--region-string-or-sentence-at-point)))
+	(if (use-region-p) (goto-char (use-region-end))
+	  (backward-char)
+	  (forward-sentence)))
+    (if position (goto-char position))
+    (let ((response (apply #'openai-create-completion
+			   (append `(:prompt ,prompt)
+				   (if (numberp max_tokens)
+				       `(:max_tokens ,max_tokens))
+				   args
+				   openai-complete-text-default-args))))
+      (prog1 response
+	(insert (alist-get 'text (seq-elt (alist-get 'choices response) 0)))))))
+
+(defcustom openai-complete-text-cat-default-args
+  '(:model "text-davinci-003"
+    :prompt nil :suffix nil :max_tokens 256
+    :temperature nil :top_p nil :n nil
+    :stream nil :logprobs nil :stop nil)
+  "Default args for text completion"
+  :type '(plist))
+
+(defun openai-complete-text-cat (prompt suffix &optional max_tokens
+					buffer-or-name position
+					&rest args)
+  "Complete text (concatenation) for given PROMPT (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION.
+Return the response which decoded by `json-read'.
+
+In an interactive call, default value of PROMPT is read from region or sentence at point,
+default value of SUFFIX is read from region or next sentence after point,
+and use numeric prefix argument to specify MAX_TOKENS.
+
+If PROMPT SUFFIX is equal, split with \"\\n\", first set to PROMPT, and rest set to SUFFIX.
+
+If BUFFER-OR-NAME not specified, use current buffer.
+If POSITION is not specified, and use current buffer while PROMPT is default, it will be inserted properly.
+
+ARGS will override `openai-complete-text-cat-default-args', see `openai-create-completion' for details."
+  (interactive (list (read-string
+		      (format "Input the prefix prompt (%s): "
+			      (openai--region-string-or-sentence-at-point))
+		      nil nil
+		      (openai--region-string-or-sentence-at-point))
+		     (read-string
+		      (format "Input the suffix prompt (%s): "
+			      (if (use-region-p)
+				  (openai--region-string-or-sentence-at-point)
+				(openai--nth-sentence-after-point 1)))
+		      nil nil
+		      (if (use-region-p)
+			  (openai--region-string-or-sentence-at-point)
+			(openai--nth-sentence-after-point 1)))
+		     current-prefix-arg))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if (string= prompt suffix)
+	(let ((index (string-match "\n" prompt)))
+	  (setq prompt (substring prompt 0 index)
+		suffix (substring suffix (+ index 1)))))
+    (if (and (not position)
+	     (not buffer-or-name))
+	(if (string= (concat prompt "\n" suffix)
+		     (openai--region-string))
+	    (goto-char (+ (use-region-beginning) (length prompt)))
+	  (if (and (string= prompt (sentence-at-point))
+		   (string= suffix (openai--nth-sentence-after-point 1)))
+	      (progn (backward-char) (forward-sentence)))))
+    (if position (goto-char position))
+    (apply #'openai-complete-text (append (list prompt max_tokens
+						(current-buffer) (point))
+					  `(:suffix ,suffix)
+					  args
+					  openai-complete-text-cat-default-args))))
+
+
 (provide 'openai)
 
 ;;; openai.el ends here
