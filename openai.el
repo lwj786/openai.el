@@ -50,7 +50,7 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
 
 (defun openai--make-request (uri &optional data content-type method)
   "Interact with api.openai.com through HTTP requests.
-Return the response which decoded by `json-read'"
+Return the response which decoded by `json-read'."
   (let ((url-request-method (or method (if data "POST" "GET")))
 	(url-request-extra-headers
 	 (append
@@ -95,14 +95,17 @@ Return the response which decoded by `json-read'"
       (if k
 	  (openai--preprocess-request-data args (cdr keywords) content-type)))))
 
-(defun openai--gen-docstring (do keywords required-keywords doc_url)
+(defun openai--gen-docstring (do &optional keywords required-keywords doc_url)
   "A helper function for generate docstring"
-  (format "%s
-ARGS is a plist whose property name should be in:
- \\='%S
-and \\='%S is required while others are optional.
-Visit URL `%s' for details."
-	   do keywords required-keywords doc_url))
+  (concat do "\n"
+	  "Return the response which decoded by `json-read'.\n"
+	  (if keywords (format
+			"\nARGS is a plist whose property name should be in:\n \\='%S\n"
+			keywords))
+	  (if required-keywords (format
+				 "and \\='%S is required while others are optional.\n"
+				 required-keywords))
+	  (if doc_url (format "\nVisit URL `%s' for details.\n" doc_url))))
 
 (defmacro openai--define-api (name arglist docstring
 				   uri &optional keywords content-type method)
@@ -121,11 +124,13 @@ Visit URL `%s' for details."
 ;; Models
 
 (openai--define-api "list-models" ()
-		    "List models which currently available with its basic infomation."
+		    (openai--gen-docstring
+		     "List models which currently available with its basic infomation.")
 		    "/v1/models")
 
 (openai--define-api "retrieve-model" (model)
-		    "Retrieve a model instance with its basic infomation by its ID"
+		    (openai--gen-docstring
+		     "Retrieve a model instance with its basic infomation by its ID.")
 		    (concat "/v1/models/" model))
 
 ;; Completions
@@ -218,7 +223,8 @@ Visit URL `%s' for details."
 ;; Files
 
 (openai--define-api "list-files" ()
-		    "List files belonging to the user's organization."
+		    (openai--gen-docstring
+		     "List files belonging to the user's organization.")
 		    "/v1/files")
 
 (let* ((keywords '(:file :purpose))
@@ -235,17 +241,20 @@ Visit URL `%s' for details."
 			      (mml-compute-boundary nil))))
 
 (openai--define-api "delete-file" (file_id)
-		    "Delete a file."
+		    (openai--gen-docstring
+		     "Delete a file.")
 		    (concat "/v1/files/" file_id)
 		    nil nil
 		    "DELETE")
 
 (openai--define-api "retrieve-file" (file_id)
-		    "Retrieve a file's infomation."
+		    (openai--gen-docstring
+		     "Retrieve a file's infomation.")
 		    (concat "/v1/files/" file_id))
 
 (openai--define-api "download-file" (file_id)
-		    "Get the file's content."
+		    (openai--gen-docstring
+		     "Get the file's content.")
 		    (concat "/v1/files/" file_id "/content"))
 
 ;; Fine-tunes
@@ -267,23 +276,28 @@ Visit URL `%s' for details."
 		      keywords))
 
 (openai--define-api "list-fine-tunes" ()
-		    "List fine-tuning jobs."
+		    (openai--gen-docstring
+		     "List fine-tuning jobs.")
 		    "/v1/fine-tunes")
 
 (openai--define-api "retrieve-fine-tune" (fine-tune-id)
-		    "Retrieve the fine-tuning job's infomation."
+		    (openai--gen-docstring
+		     "Retrieve the fine-tuning job's infomation.")
 		    (concat "/v1/fine-tunes/" fine_tune_id))
 
 (openai--define-api "cancel-fine-tune" (fine-tune-id)
-		    "cancel a fine-tuning job."
+		    (openai--gen-docstring
+		     "Cancel a fine-tuning job.")
 		    (concat "/v1/fine-tunes/" fine-tune-id "/cancel"))
 
 (openai--define-api "list-fine-tune-events" (fine_tune_id)
-		    "List the fine-tuning job's status."
+		    (openai--gen-docstring
+		     "List the fine-tuning job's status.")
 		    (concat "/v1/fine-tunes/" fine-tune-id "/events"))
 
 (openai--define-api "delete-model" (model)
-		    "Delete a fine-tuned model."
+		    (openai--gen-docstring
+		     "Delete a fine-tuned model.")
 		    (concat "/v1/models/" model)
 		    nil nil
 		    "DELETE")
