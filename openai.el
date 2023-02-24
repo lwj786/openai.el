@@ -162,7 +162,7 @@ Return the response which decoded by `json-read'."
 		   "https://platform.openai.com/docs/api-reference/edits/create")))
   (openai--define-api "create-edit" (&rest args)
 		      docstring
-		      "v1/edits"
+		      "/v1/edits"
 		      keywords))
 
 ;; Images
@@ -445,6 +445,45 @@ ARGS will override `openai-complete-text-cat-default-args', see `openai-create-c
 					  args
 					  openai-complete-text-cat-default-args))))
 
+;; Text edit
+
+(defcustom openai-edit-text-default-args
+  '(:model "text-davinci-edit-001"
+	   :input nil :instruction nil :n nil
+	   :temperature nil :top_p nil)
+  "Default args for edit text."
+  :type '(plist))
+
+(defun openai-edit-text (input instruction
+			       &optional buffer-or-name position
+			       &rest args)
+  "Edit text for given INPUT, INSTRUCTION (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION.
+Return the response which decoded by `json-read'.
+
+In an interactive call, default value of INPUT is read from region or sentence at point.
+
+If BUFFER-OR-NAME not specified, use current buffer.
+If POSITION is not specified, and use current buffer while INPUT is default, it will be inserted properly.
+
+ARGS will override `openai-edit-text-default-args', see `openai-create-edit' for details."
+  (interactive (list (read-string (format "Input the original text (%s): "
+					  (openai--region-string-or-sentence-at-point))
+				  nil nil
+				  (openai--region-string-or-sentence-at-point))
+		     (read-string (format "Input the instruction: "))))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if (and (not position)
+	     (not buffer-or-name))
+	(if (use-region-p) (goto-char (use-region-p))
+	  (backward-char)
+	  (forward-sentence)))
+      (if position (goto-char position))
+      (let ((response (apply #'openai-create-edit
+			     (append `(:input ,input :instruction ,instruction)
+				     args
+				     openai-edit-text-default-args))))
+	(prog1 response
+	  (insert (alist-get 'text (seq-elt (alist-get 'choices response) 0)))))))
 
 (provide 'openai)
 
