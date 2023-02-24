@@ -347,7 +347,7 @@ Return the response which decoded by `json-read'."
     :prompt nil :suffix nil :max_tokens 125
     :temperature nil :top_p nil :n nil
     :stream nil :logprobs nil :stop nil)
-  "Default args for text completion"
+  "Default args for complete text"
   :type '(plist))
 
 (defun openai-complete-text (prompt &optional max_tokens
@@ -391,7 +391,7 @@ ARGS will override `openai-complete-text-default-args', see `openai-create-compl
     :prompt nil :suffix nil :max_tokens 256
     :temperature nil :top_p nil :n nil
     :stream nil :logprobs nil :stop nil)
-  "Default args for text completion"
+  "Default args for complete text (concatenation)."
   :type '(plist))
 
 (defun openai-complete-text-cat (prompt suffix &optional max_tokens
