@@ -73,7 +73,9 @@ Return the response which decoded by `json-read'."
     (with-current-buffer (url-retrieve-synchronously
 			  (concat "https://api.openai.com" uri))
       (json-read-from-string
-       (decode-coding-region url-http-end-of-headers (point-max) 'utf-8 t)))))
+       (decode-coding-region (1+ (progn (goto-char (point-min))
+				       (search-forward-regexp "^$")))
+			     (point-max) 'utf-8 t)))))
 
 (defun openai--preprocess-request-data (&optional args keywords content-type)
   "Preprocess request body data."
