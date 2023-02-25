@@ -328,7 +328,7 @@ Return the response which decoded by `json-read'."
 
 (defun openai--region-string-or-sentence-at-point ()
   "Return string in region if use region, or sentence at point."
-  (or (openai--region-stirng)
+  (or (openai--region-string)
       (sentence-at-point t)))
 
 (defun openai--nth-sentence-after-point (&optional nth)
