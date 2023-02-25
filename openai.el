@@ -476,7 +476,7 @@ ARGS will override `openai-edit-text-default-args', see `openai-create-edit' for
   (with-current-buffer (or buffer-or-name (current-buffer))
     (if (and (not position)
 	     (not buffer-or-name))
-	(if (use-region-p) (goto-char (use-region-p))
+	(if (use-region-p) (goto-char (use-region-end))
 	  (backward-char)
 	  (forward-sentence)))
       (if position (goto-char position))
