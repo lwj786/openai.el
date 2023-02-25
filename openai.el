@@ -379,14 +379,16 @@ ARGS will override `openai-complete-text-default-args', see `openai-create-compl
 	  (backward-char)
 	  (forward-sentence)))
     (if position (goto-char position))
-    (let ((response (apply #'openai-create-completion
-			   (append `(:prompt ,prompt)
-				   (if (numberp max_tokens)
-				       `(:max_tokens ,max_tokens))
-				   args
-				   openai-complete-text-default-args))))
+    (let* ((response (apply #'openai-create-completion
+			    (append `(:prompt ,prompt)
+				    (if (numberp max_tokens)
+					`(:max_tokens ,max_tokens))
+				    args
+				    openai-complete-text-default-args)))
+	   (text (alist-get 'text (seq-elt (alist-get 'choices response) 0)))
+	   (text-property '(face (:background "#d2f4d3"))))
       (prog1 response
-	(insert (alist-get 'text (seq-elt (alist-get 'choices response) 0)))))))
+	(insert (apply #'propertize text text-property)	"\n")))))
 
 (defcustom openai-complete-text-cat-default-args
   '(:model "text-davinci-003"
@@ -480,12 +482,14 @@ ARGS will override `openai-edit-text-default-args', see `openai-create-edit' for
 	  (backward-char)
 	  (forward-sentence)))
       (if position (goto-char position))
-      (let ((response (apply #'openai-create-edit
-			     (append `(:input ,input :instruction ,instruction)
-				     args
-				     openai-edit-text-default-args))))
+      (let* ((response (apply #'openai-create-edit
+			      (append `(:input ,input :instruction ,instruction)
+				      args
+				      openai-edit-text-default-args)))
+	     (text (alist-get 'text (seq-elt (alist-get 'choices response) 0)))
+	     (text-property '(face (:background "#d2f4d3"))))
 	(prog1 response
-	  (insert (alist-get 'text (seq-elt (alist-get 'choices response) 0)))))))
+	  (insert (apply #'propertize text text-property) "\n")))))
 
 (provide 'openai)
 
