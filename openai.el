@@ -346,15 +346,15 @@ Return the response which decoded by `json-read'."
 
 (defcustom openai-complete-text-default-args
   '(:model "text-davinci-003"
-    :prompt nil :suffix nil :max_tokens 125
+    :prompt nil :suffix nil :max_tokens 128
     :temperature nil :top_p nil :n nil
     :stream nil :logprobs nil :stop nil)
   "Default args for complete text"
   :type '(plist))
 
 (defun openai-complete-text (prompt &optional max_tokens
-				      buffer-or-name position
-				      &rest args)
+				    buffer-or-name position
+				    &rest args)
   "Complete text for given PROMPT (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION.
 Return the response which decoded by `json-read'.
 
@@ -362,7 +362,7 @@ In an interactive call, default value of PROMPT is read from region or sentence 
 and use numeric prefix argument to specify MAX_TOKENS.
 
 If BUFFER-OR-NAME not specified, use current buffer.
-If POSITION is not specified, and use current buffer while PROMPT is default, it will be inserted properly.
+If POSITION is not specified, use current buffer and PROMPT is default, it will be inserted properly.
 
 ARGS will override `openai-complete-text-default-args', see `openai-create-completion' for details."
   (interactive (list (read-string
@@ -379,16 +379,17 @@ ARGS will override `openai-complete-text-default-args', see `openai-create-compl
 	  (backward-char)
 	  (forward-sentence)))
     (if position (goto-char position))
-    (let* ((response (apply #'openai-create-completion
-			    (append `(:prompt ,prompt)
-				    (if (numberp max_tokens)
-					`(:max_tokens ,max_tokens))
-				    args
-				    openai-complete-text-default-args)))
+    (let* ((args (append `(:prompt ,prompt)
+			 (if (numberp max_tokens)
+			     `(:max_tokens ,max_tokens))
+			 args
+			 openai-complete-text-default-args))
+	   (response (apply #'openai-create-completion args))
 	   (text (alist-get 'text (seq-elt (alist-get 'choices response) 0)))
 	   (text-property '(face (:background "#d2f4d3"))))
       (prog1 response
-	(insert (apply #'propertize text text-property)	"\n")))))
+	(insert (apply #'propertize text text-property)
+		(unless (plist-get args :suffix) "\n"))))))
 
 (defcustom openai-complete-text-cat-default-args
   '(:model "text-davinci-003"
@@ -398,20 +399,28 @@ ARGS will override `openai-complete-text-default-args', see `openai-create-compl
   "Default args for complete text (concatenation)."
   :type '(plist))
 
+(defcustom openai-complete-text-cat-separator
+  "\n"
+  "Separator for split prompt."
+  :type 'string)
+
 (defun openai-complete-text-cat (prompt suffix &optional max_tokens
 					buffer-or-name position
 					&rest args)
-  "Complete text (concatenation) for given PROMPT (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION.
+  "Complete text (concatenation) for given PROMPT, SUFFIX (and other ARGS),
+and insert it in BUFFER-OR-NAME at POSITION.
 Return the response which decoded by `json-read'.
 
 In an interactive call, default value of PROMPT is read from region or sentence at point,
 default value of SUFFIX is read from region or next sentence after point,
 and use numeric prefix argument to specify MAX_TOKENS.
 
-If PROMPT SUFFIX is equal, split with \"\\n\", first set to PROMPT, and rest set to SUFFIX.
+If PROMPT SUFFIX is equal, split with `openai-complete-text-cat-separator',
+first is set to PROMPT, and rest is set to SUFFIX.
 
 If BUFFER-OR-NAME not specified, use current buffer.
-If POSITION is not specified, and use current buffer while PROMPT is default, it will be inserted properly.
+If POSITION is not specified, use current buffer and PROMPT, SUFFIX is default,
+separator will be deleted and text will be inserted properly.
 
 ARGS will override `openai-complete-text-cat-default-args', see `openai-create-completion' for details."
   (interactive (list (read-string
@@ -431,14 +440,16 @@ ARGS will override `openai-complete-text-cat-default-args', see `openai-create-c
 		     current-prefix-arg))
   (with-current-buffer (or buffer-or-name (current-buffer))
     (if (string= prompt suffix)
-	(let ((index (string-match "\n" prompt)))
+	(let ((index (string-match openai-complete-text-cat-separator prompt)))
 	  (setq prompt (substring prompt 0 index)
-		suffix (substring suffix (+ index 1)))))
+		suffix (substring suffix (+ index (length openai-complete-text-cat-separator))))))
     (if (and (not position)
 	     (not buffer-or-name))
-	(if (string= (concat prompt "\n" suffix)
+	(if (string= (concat prompt openai-complete-text-cat-separator suffix)
 		     (openai--region-string))
-	    (goto-char (+ (use-region-beginning) (length prompt)))
+	    (progn
+	      (goto-char (+ (use-region-beginning) (length prompt)))
+	      (delete-char (length openai-complete-text-cat-separator)))
 	  (if (and (string= prompt (sentence-at-point))
 		   (string= suffix (openai--nth-sentence-after-point 1)))
 	      (progn (backward-char) (forward-sentence)))))
@@ -461,13 +472,14 @@ ARGS will override `openai-complete-text-cat-default-args', see `openai-create-c
 (defun openai-edit-text (input instruction
 			       &optional buffer-or-name position
 			       &rest args)
-  "Edit text for given INPUT, INSTRUCTION (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION.
+  "Edit text for given INPUT, INSTRUCTION (and other ARGS),
+and insert it in BUFFER-OR-NAME at POSITION.
 Return the response which decoded by `json-read'.
 
 In an interactive call, default value of INPUT is read from region or sentence at point.
 
 If BUFFER-OR-NAME not specified, use current buffer.
-If POSITION is not specified, and use current buffer while INPUT is default, it will be inserted properly.
+If POSITION is not specified, use current buffer and INPUT is default, it will be inserted properly.
 
 ARGS will override `openai-edit-text-default-args', see `openai-create-edit' for details."
   (interactive (list (read-string (format "Input the original text (%s): "
@@ -482,10 +494,10 @@ ARGS will override `openai-edit-text-default-args', see `openai-create-edit' for
 	  (backward-char)
 	  (forward-sentence)))
       (if position (goto-char position))
-      (let* ((response (apply #'openai-create-edit
-			      (append `(:input ,input :instruction ,instruction)
-				      args
-				      openai-edit-text-default-args)))
+      (let* ((args (append `(:input ,input :instruction ,instruction)
+			   args
+			   openai-edit-text-default-args))
+	     (response (apply #'openai-create-edit args))
 	     (text (alist-get 'text (seq-elt (alist-get 'choices response) 0)))
 	     (text-property '(face (:background "#d2f4d3"))))
 	(prog1 response
