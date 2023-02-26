@@ -503,6 +503,76 @@ ARGS will override `openai-edit-text-default-args', see `openai-create-edit' for
 	(prog1 response
 	  (insert (apply #'propertize text text-property) "\n")))))
 
+;; Code completion
+
+(defcustom openai-complete-code-default-args
+  '(:model "code-davinci-002"
+    :prompt nil :suffix nil :max_tokens 128
+    :temperature nil :top_p nil :n nil
+    :stream nil :logprobs nil :stop nil)
+  "Default args for complete code"
+  :type '(plist))
+
+(defun openai-complete-code (&rest args)
+  "Same as `openai-complete-text' but for code,
+by set `openai-complete-text-default-args' to `openai-complete-code-default-args'.
+
+ARGS is same as arguments of `openai-complete-text'.
+In an non-interactive call, required arguments must be specified."
+  (interactive)
+  (let ((openai-complete-text-default-args openai-complete-code-default-args))
+    (if args
+	(apply #'openai-complete-text args)
+      (call-interactively #'openai-complete-text))))
+
+(defcustom openai-complete-code-cat-default-args
+  '(:model "code-davinci-002"
+    :prompt nil :suffix nil :max_tokens 256
+    :temperature nil :top_p nil :n nil
+    :stream nil :logprobs nil :stop nil)
+  "Default args for complete code (concatenation)."
+  :type '(plist))
+
+(defcustom openai-complete-code-cat-separator
+  "\n\n\n"
+  "Separator for split prompt (code)."
+  :type 'string)
+
+(defun openai-complete-code-cat (&rest args)
+  "Same as `openai-complete-text-cat' but for code,
+by set `openai-complete-text-cat-default-args' to `openai-complete-code-cat-default-args',
+`openai-complete-text-cat-separator' to `openai-complete-code-cat-separator'.
+
+ARGS is same as argument of `openai-complete-text-cat'.
+In an non-interactive call, required argument must be specified."
+  (interactive)
+  (let ((openai-complete-text-cat-default-args openai-complete-code-cat-default-args)
+	(openai-complete-text-cat-separator openai-complete-code-cat-separator))
+    (if args
+	(apply #'openai-complete-text-cat args)
+      (call-interactively #'openai-complete-text-cat))))
+
+;; Code edit
+
+(defcustom openai-edit-code-default-args
+  '(:model "code-davinci-edit-001"
+	   :input nil :instruction nil :n nil
+	   :temperature nil :top_p nil)
+  "Default args for edit code."
+  :type '(plist))
+
+(defun openai-edit-code (&rest args)
+  "Same as `openai-edit-text' but for code,
+by set `openai-edit-text-default-args' to `openai-edit-code-default-args'.
+
+ARGS is same as argument of `openai-edit-text',
+and will be passed to `openai-edit-text' in an non-interactive call."
+  (interactive)
+  (let ((openai-edit-text-default-args openai-edit-code-default-args))
+    (if args
+	(apply #'openai-edit-text args)
+      (call-interactively #'openai-edit-text))))
+
 (provide 'openai)
 
 ;;; openai.el ends here
