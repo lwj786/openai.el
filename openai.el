@@ -342,6 +342,20 @@ Return the response which decoded by `json-read'."
     (prog1 (sentence-at-point t)
       (goto-char position))))
 
+(defun openai--create-image-descriptor (response &optional response_format)
+  "Return image descriptor for given RESPONSE, RESPONSE_FORMAT."
+  (let* ((response_format (or response_format "url"))
+	 (url-or-b64 (alist-get (intern response_format) (seq-elt (alist-get 'data response) 0)))
+	 (image-data  (if (string= "b64_json" response_format)
+			  (base64-decode-string url-or-b64)
+			(with-current-buffer (url-retrieve-synchronously url-or-b64)
+			  (encode-coding-string
+			   (buffer-substring (1+ (progn (goto-char (point-min))
+							(search-forward-regexp "^$")))
+					     (point-max))
+			   'raw-text)))))
+    (create-image image-data 'png t)))
+
 ;; Text completion
 
 (defcustom openai-complete-text-default-args
@@ -572,6 +586,52 @@ and will be passed to `openai-edit-text' in an non-interactive call."
     (if args
 	(apply #'openai-edit-text args)
       (call-interactively #'openai-edit-text))))
+
+;; Image generation
+
+(defcustom openai-generate-image-default-args
+  '(:prompt nil
+	    :n nil :size nil
+	    :response_format nil :user nil)
+  "Default args for generate image"
+  :type '(plist))
+
+(defun openai-generate-image (prompt
+			      &optional buffer-or-name position
+			      &rest args)
+  "Generate image for given PROMPT and insert it in BUFFER-OR-NAME at POSITION.
+Return the response which decoded by `json-read'.
+
+In an interactive call, default value of PROMPT is read from region or sentence at point.
+
+If BUFFER-OR-NAME not specified, use current buffer.
+If POSITION is not specified, use current buffer and PROMPT is default, it will be inserted properly.
+
+ARGS will override `openai-generate-image-default-args', see `openai-create-image' for details."
+  (interactive (list (read-string
+		      (format "Input the prompt (%s): "
+			      (openai--region-string-or-sentence-at-point))
+		      nil nil
+		      (openai--region-string-or-sentence-at-point))))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if (and (not position)
+	     (not buffer-or-name)
+	     (string= prompt (openai--region-string-or-sentence-at-point)))
+	(if (use-region-p) (goto-char (use-region-end))
+	  (backward-char)
+	  (forward-sentence)))
+    (if position (goto-char position))
+    (let* ((args (append `(:prompt ,prompt)
+			 args
+			 openai-generate-image-default-args))
+	   (response (apply #'openai-create-image args))
+	   (image (openai--create-image-descriptor
+		   response
+		   (plist-get args :response_format))))
+      (prog1 response
+	(insert "\n")
+	(insert-image image)
+	(insert "\n")))))
 
 (provide 'openai)
 
