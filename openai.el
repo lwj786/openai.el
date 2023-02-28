@@ -356,6 +356,26 @@ Return the response which decoded by `json-read'."
 			   'raw-text)))))
     (create-image image-data 'png t)))
 
+(defun openai-save-image-at-point (&optional file)
+  "Save image at point, and return FILE which expanded by `expand-file-name'.
+In an interactive call or FILE is nil, use sha1 as file name and save to `user-emacs-directory'/images/."
+  (interactive)
+  (if (image-at-point-p)
+      (let ((image-data (plist-get (cdr (image--get-image))
+				   :data)))
+	(with-temp-buffer
+	  (set-buffer-multibyte nil)
+	  (insert image-data)
+	  (prog1 (setq file (expand-file-name
+			     (or file
+				 (concat user-emacs-directory
+					 "images/"
+					 (sha1 (current-buffer))
+					 ".png"))))
+	    (or (file-exists-p (file-name-directory file))
+		(mkdir (file-name-directory file)))
+	    (write-region (point-min) (point-max) file))))))
+
 ;; Text completion
 
 (defcustom openai-complete-text-default-args
@@ -629,9 +649,79 @@ ARGS will override `openai-generate-image-default-args', see `openai-create-imag
 		   response
 		   (plist-get args :response_format))))
       (prog1 response
-	(insert "\n")
-	(insert-image image)
-	(insert "\n")))))
+	(insert-image image prompt)))))
+
+(defcustom openai-edit-image-default-args
+  '(:image nil
+	   :mask nil :prompt nil :n nil
+	   :size nil :response_format nil :user nil)
+  "Default args for edit image."
+  :type '(plist))
+
+(defun openai-edit-image (image prompt &optional mask
+				buffer-or-name position
+				&rest args)
+  "Create edit for given IMAGE, PROMPT (and optional MASK), insert it in BUFFER-OR-NAME at POSITION.
+Return the response which decoded by `json-read'.
+
+In an interactive call, default value of IMAGE will use image at point or read a file name.
+
+If MASK not specified, IMAGE must have transparency area.
+If BUFFER-OR-NAME and POSITION not specified, use current buffer and position.
+
+ARGS will override `openai-edit-image-default-args', see `openai-create-image-edit' for details."
+  (interactive (list (or (openai-save-image-at-point)
+			 (expand-file-name (read-file-name
+					    "Select an image (png type and less than 4 MB):")))
+		     (read-string "Input the prompt: ")))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if position (goto-char position))
+    (let* ((args (append `(:image ,(concat "@" image)
+				  :prompt ,prompt)
+			 (if mask `(:mask ,(concat "@" mask)))
+			 args
+			 openai-edit-image-default-args))
+	   (response (apply #'openai-create-edit args))
+	   (image-edit (openai--create-image-descriptor
+			response
+			(plist-get args :response_format))))
+      (prog1 response
+	(insert-image image-edit
+		      (concat "Edit of " image))))))
+
+(defcustom openai-generate-image-variation-default-args
+  '(:image nil
+	   :n nil :size nil
+	   :response_format nil :user nil)
+  "Default args for generate image variation."
+  :type '(plist))
+
+(defun openai-generate-image-variation (image
+					&optional buffer-or-name position
+					&rest args)
+  "Generate variation for given IMAGE and insert it in BUFFER-OR-NAME at POSITION.
+Return the response which decoded by `json-read'.
+
+In an interactive call, default value of IMAGE will use image at point or read a file name.
+
+If BUFFER-OR-NAME and POSITION not specified, use current buffer and position.
+
+ARGS will override `openai-generate-image-variation-default-args', see `openai-create-image-variation' for details."
+  (interactive (list (or (openai-save-image-at-point)
+			 (expand-file-name (read-file-name
+					    "Select an image (png type and less than 4 MB):")))))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if position (goto-char position))
+    (let* ((args (append `(:image ,(concat "@" image))
+			 args
+			 openai-generate-image-variation-default-args))
+	   (response (apply #'openai-create-image-variation args))
+	   (image-variation (openai--create-image-descriptor
+			     response
+			     (plist-get args :response_format))))
+      (prog1 response
+	(insert-image image-variation
+		      (concat "Variation of " image))))))
 
 (provide 'openai)
 
