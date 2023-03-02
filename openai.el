@@ -141,7 +141,7 @@ Return the response which decoded by `json-read'."
 (let* ((keywords '(:model
 		   :prompt :suffix :max_tokens
 		   :temperature :top_p :n
-		   :stream :logprobs :stop))
+		   :stream :logprobs :stop :user))
        (docstring (openai--gen-docstring
 		   "Create a completion."
 		   keywords
