@@ -265,7 +265,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
 		   "https://platform.openai.com/docs/api-reference/audio/create")))
   (openai--define-api "create-translation" (&rest args)
 		      docstring
-		      "/v1/audio/translation"
+		      "/v1/audio/translations"
 		      keywords))
 
 ;; Files
