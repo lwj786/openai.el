@@ -104,10 +104,11 @@ Return the response which decoded by `json-read'."
   (concat do "\n"
 	  "Return the response which decoded by `json-read'.\n"
 	  (if keywords (format
-			"\nARGS is a plist whose property name should be in:\n \\='%S\n"
+			"\nARGS is a plist whose property name should be in:\n \\='%S\n
+If there is a argument which for specify file path, the path must be prefixed with '@'.\n"
 			keywords))
 	  (if required-keywords (format
-				 "and \\='%S is required while others are optional.\n"
+				 "And arguments: \\='%S is required while others are optional.\n"
 				 required-keywords))
 	  (if doc_url (format "\nVisit URL `%s' for details.\n" doc_url))))
 
