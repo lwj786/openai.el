@@ -153,6 +153,23 @@ If there is a argument which for specify file path, the path must be prefixed wi
 		      "/v1/completions"
 		      keywords))
 
+;; Chat
+
+(let* ((keywords '(:model :messages
+		   :temperature :top_p :n
+		   :stream :stop :max_tokens
+		   :presence_penalty :frequency_penalty
+		   :logit_bias :user))
+       (docstring (openai--gen-docstring
+		   "Create a cat completion for given chat conversation."
+		   keywords
+		   '(:model :messages)
+		   "https://platform.openai.com/docs/api-reference/chat/create")))
+  (openai--define-api "create-chat-completion" (&rest args)
+		      docstring
+		      "/v1/chat/completions"
+		      keywords))
+
 ;; Edits
 
 (let* ((keywords '(:model
@@ -222,6 +239,33 @@ If there is a argument which for specify file path, the path must be prefixed wi
   (openai--define-api "create-embedding" (&rest args)
 		      docstring
 		      "/v1/embeddings"
+		      keywords))
+
+;; Audio
+
+(let* ((keywords '(:file :model
+		   :prompt :response_format
+		   :temperature :language))
+       (docstring (openai--gen-docstring
+		   "Transcribes audio into text."
+		   keywords
+		   '(:file :model)
+		   "https://platform.openai.com/docs/api-reference/audio/create")))
+  (openai--define-api "create-transcription" (&rest args)
+		      docstring
+		      "/v1/audio/transcriptions"
+		      keywords))
+
+(let* ((keywords '(:file :model
+		   :prompt :response_format :temperature))
+       (docstring (openai--gen-docstring
+		   "Translate audio into text in English."
+		   keywords
+		   '(:file :model)
+		   "https://platform.openai.com/docs/api-reference/audio/create")))
+  (openai--define-api "create-translation" (&rest args)
+		      docstring
+		      "/v1/audio/translation"
 		      keywords))
 
 ;; Files
