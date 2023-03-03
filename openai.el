@@ -652,6 +652,63 @@ and will be passed to `openai-edit-text' in an non-interactive call."
 	(apply #'openai-edit-text args)
       (call-interactively #'openai-edit-text))))
 
+;; Chat completion
+
+(defcustom openai-complete-chat-default-args
+  '(:model "gpt-3.5-turbo" :messages nil
+	   :temperature nil :top_p nil :n nil
+	   :stream nil :stop nil :max_tokens nil
+	   :presence_penalty nil :frequency_penalty nil
+	   :logit_bias nil :user nil)
+  "Default args fro complete chat."
+  :type '(plist))
+
+(defun openai-complete-chat (messages &optional max_tokens
+				      buffer-or-name position text-property
+				      &rest args)
+  "Complete chat for given messages (and other ARGS), and insert it in BUFFER-OR-NAME at POSITION with TEXT-PROPERTY.
+Return the response which decoded by `json-read'.
+
+MESSAGES should be a vector of \\='((role . \"...\") (content . \"...\")).
+
+In an interactive call, default value of MESSAGES is read from region or sentence at point
+which will be converted to \\='[((role . \"user\") (content . \"...\"))],
+and use numeric prefix argument to specify MAX_TOKENS.
+
+If BUFFER-OR-NAME not specified, use current buffer.
+If POSITION is not specified, use current buffer and PROMPT is default, it will be inserted properly.
+
+ARGS will override `openai-complete-chat-default-args', see `openai-create-chat-completion' for details."
+  (interactive (list `[((role . "user")
+			(content . ,(read-string
+				     (format "I (%s): "
+					     (openai--region-string-or-sentence-at-point))
+				     nil nil
+				     (openai--region-string-or-sentence-at-point))))]
+		     current-prefix-arg))
+  (with-current-buffer (or buffer-or-name (current-buffer))
+    (if (and (not position)
+	     (not buffer-or-name)
+	     (string= (alist-get 'content (seq-elt messages 0))
+		      (openai--region-string-or-sentence-at-point)))
+	(if (use-region-p) (goto-char (use-region-end))
+	  (backward-char)
+	  (forward-sentence)))
+    (if position (goto-char position))
+    (let* ((args (append `(:messages ,messages)
+			 (if (numberp max_tokens)
+			     `(:max_tokens ,max_tokens))
+			 args
+			 openai-complete-chat-default-args))
+	   (response (apply #'openai-create-chat-completion args))
+	   (text (alist-get 'content
+			    (alist-get 'message
+				       (seq-elt (alist-get 'choices response) 0))))
+	   (text-property (or text-property
+			      '(face (:background "#d2f4d3")))))
+      (prog1 response
+	(insert (apply #'propertize text text-property) "\n")))))
+
 ;; Image generation
 
 (defcustom openai-generate-image-default-args
