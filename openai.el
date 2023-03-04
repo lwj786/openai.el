@@ -830,6 +830,92 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 	(insert-image image-variation
 		      (concat "Variation of " image))))))
 
+;; Mode
+
+(defcustom openai-chat-user-input-prompt
+  (propertize "曰：" 'face '(:foreground "red"))
+  "Prompt for user input."
+  :type 'string)
+
+(defcustom openai-chat-assistant-output-prompt
+  (concat (propertize "人♡" 'face '(:background "#d2f4d3"))
+	  "\n"
+	  (propertize "∆λI" 'face '(:background "#d2f4d3"))
+	  ": ")
+  "Prompt for assistant output."
+  :type 'string)
+
+(define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
+  "OpenAI chat mode."
+  (setq-local openai-chat-messages '[])
+  (make-local-variable 'openai-chat-user-input-beggining)
+
+  (openai-chat-set-io-prompt))
+
+(defun openai-chat-set-io-prompt (&optional non-user)
+  (let ((prompt (if non-user
+		    openai-chat-assistant-output-prompt
+		  openai-chat-user-input-prompt)))
+    (or (= (pos-bol) (point))
+	(insert "\n"))
+    (insert (propertize prompt
+			'read-only t
+			'rear-nonsticky '(read-only))))
+  (or non-user
+      (setq openai-chat-user-input-beggining (point))))
+
+(defun openai-chat-put-messages (&rest args)
+  "ARGS should be a message or two string: role and content."
+  (setq openai-chat-messages
+	(vconcat openai-chat-messages
+		 (if (= (length args) 1)
+		     args
+		   `[((role . ,(car args))
+		      (content . ,(cadr args)))]))))
+
+(defun openai-chat-send ()
+  "Send user's input and receive response and insert it, put them to `openai-chat-messages'.
+Return the response which decoded by `json-read'.
+
+If user's input is empty, will not send."
+  (interactive)
+  (if (derived-mode-p 'openai-chat-mode)
+      (let ((user-input (buffer-substring-no-properties
+			 openai-chat-user-input-beggining
+			 (point-max))))
+	(if (length user-input)
+	    (progn
+	      (goto-char (point-max))
+	      (openai-chat-put-messages "user" user-input)
+	      (openai-chat-set-io-prompt t)
+	      (let ((response (openai-complete-chat openai-chat-messages
+						    (current-buffer) nil nil
+						    '(read-only t rear-nonsticky (read-only)))))
+		(openai-chat-put-messages (alist-get
+					   'message
+					   (seq-elt (alist-get 'choices response) 0)))
+		(openai-chat-set-io-prompt)
+		response))
+	  (openai-chat-set-io-prompt) nil))))
+
+(defun openai-chat (&optional n)
+  "Create or switch to OpenAI chat buffer, and return the buffer.
+N specify the buffer with that number (create if not exist).
+
+In an interactive call, use numeric prefix arg N to create or switch specified buffer."
+  (interactive "P")
+  (let ((buf (get-buffer-create (if n
+				    (format "%s<%d>"
+					    "OpenAI/Chat"
+					    n)
+				  "OpenAI/Chat"))))
+    (pop-to-buffer buf)
+    (with-current-buffer buf
+      (or (derived-mode-p 'openai-chat-mode)
+	  (openai-chat-mode)))
+    buf))
+
+
 (provide 'openai)
 
 ;;; openai.el ends here
