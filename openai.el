@@ -28,6 +28,7 @@
 (require 'url)
 (require 'mm-url)
 (require 'mml)
+(require 'mailcap)
 
 (require 'json)
 
@@ -89,7 +90,7 @@ Return the response which decoded by `json-read'."
 		       (string-match-p "^@" v)))
 	     `("file" . (("name" . ,(substring (symbol-name k) 1))
 			 ("filename" . ,(file-name-nondirectory v))
-			 ("content-type" . "image/png")
+			 ("content-type" . ,(mailcap-file-name-to-mime-type v))
 			 ("filedata" . ,(with-temp-buffer
 					  (insert-file-contents-literally
 					   (substring v 1))
