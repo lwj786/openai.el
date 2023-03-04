@@ -255,7 +255,9 @@ If there is a argument which for specify file path, the path must be prefixed wi
   (openai--define-api "create-transcription" (&rest args)
 		      docstring
 		      "/v1/audio/transcriptions"
-		      keywords))
+		      keywords
+		      (concat "multipart/form-data; boundary="
+			      (mml-compute-boundary nil))))
 
 (let* ((keywords '(:file :model
 		   :prompt :response_format :temperature))
@@ -267,7 +269,9 @@ If there is a argument which for specify file path, the path must be prefixed wi
   (openai--define-api "create-translation" (&rest args)
 		      docstring
 		      "/v1/audio/translations"
-		      keywords))
+		      keywords
+		      (concat "multipart/form-data; boundary="
+			      (mml-compute-boundary nil))))
 
 ;; Files
 
