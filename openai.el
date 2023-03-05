@@ -832,18 +832,36 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 
 ;; Mode
 
+(defcustom openai-chat-default-args
+  '(:model "gpt-3.5-turbo" :messages nil
+	   :temperature nil :top_p nil :n nil
+	   :stream nil :stop nil :max_tokens nil
+	   :presence_penalty nil :frequency_penalty nil
+	   :logit_bias nil :user nil)
+  "Default arguments for OpenAI Chat API."
+  :type '(plist))
+
 (defcustom openai-chat-user-input-prompt
   (propertize "曰：" 'face '(:foreground "red"))
   "Prompt for user input."
   :type 'string)
 
 (defcustom openai-chat-assistant-output-prompt
-  (concat (propertize "人♡" 'face '(:background "#d2f4d3"))
-	  "\n"
-	  (propertize "∆λI" 'face '(:background "#d2f4d3"))
-	  ": ")
+  (concat (propertize "人♡" 'face '(:background "#d2f4d3")) "\n"
+	  (propertize "∆λI" 'face '(:background "#d2f4d3")) ": ")
   "Prompt for assistant output."
   :type 'string)
+
+(defcustom openai-chat-dir
+  (concat user-emacs-directory
+	  "openai/chat/")
+  "Default directory for save chat."
+  :type 'string)
+
+(defvar-keymap openai-chat-mode-map
+  "C-j" #'openai-chat-send
+  "C-c s" #'openai-chat-save
+  "C-c r u i" #'openai-chat-reset-user-input)
 
 (define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
   "OpenAI chat mode."
@@ -853,6 +871,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   (openai-chat-set-io-prompt))
 
 (defun openai-chat-set-io-prompt (&optional non-user)
+  "Set prompt for user or assistant."
   (let ((prompt (if non-user
 		    openai-chat-assistant-output-prompt
 		  openai-chat-user-input-prompt)))
@@ -873,30 +892,73 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 		   `[((role . ,(car args))
 		      (content . ,(cadr args)))]))))
 
-(defun openai-chat-send ()
-  "Send user's input and receive response and insert it, put them to `openai-chat-messages'.
+(defun openai-chat-reset-user-input ()
+  "Reset user input.
+Can be used when failed to recvice response."
+  (interactive)
+  (if (derived-mode-p 'openai-chat-mode)
+      (openai-chat-set-io-prompt)))
+
+(defun openai-chat-send (&optional resend)
+  "Send user's input, recvice response and insert it, put them to `openai-chat-messages'.
 Return the response which decoded by `json-read'.
 
-If user's input is empty, will not send."
-  (interactive)
+If user's input is empty, may will not send.
+If RESEND is non nil, always send and not to put user's input to `openai-chat-messages',
+can be used when failed to recvice response.
+
+In an interactive call, use prefix argument to specify RESEND."
+  (interactive "P")
   (if (derived-mode-p 'openai-chat-mode)
       (let ((user-input (buffer-substring-no-properties
 			 openai-chat-user-input-beggining
 			 (point-max))))
-	(if (length user-input)
+	(if (or (length user-input)
+		resend)
 	    (progn
 	      (goto-char (point-max))
-	      (openai-chat-put-messages "user" user-input)
+	      (unless resend
+		  (openai-chat-put-messages "user" user-input))
 	      (openai-chat-set-io-prompt t)
-	      (let ((response (openai-complete-chat openai-chat-messages
-						    (current-buffer) nil nil
-						    '(read-only t rear-nonsticky (read-only)))))
+	      (let* ((args (append
+			    `(,openai-chat-messages
+			      ,(current-buffer) nil nil
+			      (read-only t rear-nonsticky (read-only)))
+			    openai-chat-default-args))
+		     (response (apply #'openai-complete-chat args)))
 		(openai-chat-put-messages (alist-get
 					   'message
 					   (seq-elt (alist-get 'choices response) 0)))
 		(openai-chat-set-io-prompt)
 		response))
 	  (openai-chat-set-io-prompt) nil))))
+
+(defun openai-chat-save (file)
+  "Save the current chat to FILE and return the FILE.
+
+Default directory is set by `openai-chat-dir'.
+In an interactive call, prompt for FILE, and default value is in \"chat-%Y%m%d%H%M%S.json\" format."
+  (interactive (list (let ((filename (concat openai-chat-dir
+					     (format-time-string
+					      "chat-%Y%m%d%H%M%S.json"))))
+		       (read-file-name (format "Save the chat (%s): "
+					       filename)
+				     openai-chat-dir
+				     filename))))
+  (if (derived-mode-p 'openai-chat-mode)
+      (let ((chat (openai--preprocess-request-data
+		   (plist-put openai-chat-default-args
+			      :messages
+			      openai-chat-messages)
+		   '(:model :messages
+			    :temperature :top_p :n
+			    :stream :stop :max_tokens
+			    :presence_penalty :frequency_penalty
+			    :logit_bias :user))))
+	(with-temp-buffer
+	  (insert (json-encode chat))
+	  (write-file file)
+	  file))))
 
 (defun openai-chat (&optional n)
   "Create or switch to OpenAI chat buffer, and return the buffer.
