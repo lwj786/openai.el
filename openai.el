@@ -862,12 +862,15 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 
 (defvar-keymap openai-chat-mode-map
   "C-j" #'openai-chat-send
-  "C-c s" #'openai-chat-save
+  "C-x C-s" #'openai-chat-save
+  "C-c s a" #'openai-chat-save-as
   "C-c r u i" #'openai-chat-reset-user-input)
 
 (define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
   "OpenAI chat mode."
   (setq-local openai-chat-messages '[])
+  (setq-local openai-chat-file nil)
+  (make-local-variable 'openai-chat-default-args)
   (make-local-variable 'openai-chat-user-input-beggining)
 
   (openai-chat-set-io-prompt))
@@ -935,8 +938,8 @@ In an interactive call, use prefix argument to specify RESEND."
                 response))
           (openai-chat-set-io-prompt) nil))))
 
-(defun openai-chat-save (file)
-  "Save the current chat to FILE and return the FILE.
+(defun openai-chat-save-as (file)
+  "Save the current chat as FILE and return the FILE.
 
 Default directory is set by `openai-chat-dir'.
 In an interactive call, prompt for FILE, and default value is in \"chat-%Y%m%d%H%M%S.json\" format."
@@ -961,6 +964,50 @@ In an interactive call, prompt for FILE, and default value is in \"chat-%Y%m%d%H
           (insert (json-encode chat))
           (write-file file)
           file))))
+
+(defun openai-chat-save ()
+  "Save current chat to `openai-chat-file', return the saved file.
+If `openai-chat-file' is nil, call `openai-chat-save-as' interactively."
+  (interactive)
+  (if openai-chat-file
+      (openai-chat-save-as openai-chat-file)
+    (call-interactively #'openai-chat-save-as)))
+
+(defun openai-chat-continue (file &optional n)
+  "Create or switch to chat buffer, load chat file, return the buffer.
+If `openai-chat-messages' is not empty, will not load chat file.
+FILE is a json file saved by `openai-chat-save' or `openai-chat-save-as'.
+As for N, check `openai-chat' for details."
+  (interactive (list (read-file-name "Load the chat: "
+                                     openai-chat-dir)
+                     current-prefix-arg))
+  (with-current-buffer (openai-chat n)
+    (when (and (file-exists-p file)
+               (= (length openai-chat-messages) 0))
+      (let ((data (json-read-file file)))
+        (setq openai-chat-file file
+              openai-chat-messages (alist-get 'messages data))
+        (dolist (elt (mapcar #'car data))
+          (setq openai-chat-default-args
+                (plist-put openai-chat-default-args
+                           (intern (concat ":" (symbol-name elt)))
+                           (alist-get elt data)))))
+      (let ((inhibit-read-only t)) (erase-buffer))
+      (let ((i 0)
+            (l (length openai-chat-messages)))
+        (while (< i l)
+          (let* ((m (seq-elt openai-chat-messages i))
+                 (r (alist-get 'role m))
+                 (c (alist-get 'content m)))
+            (cond ((string= r "user")
+                   (openai-chat-set-io-prompt)
+                   (insert c))
+                  ((string= r "assistant")
+                   (openai-chat-set-io-prompt t)
+                   (insert c))))
+          (setq i (1+ i))))
+      (openai-chat-set-io-prompt)
+      (current-buffer))))
 
 (defun openai-chat (&optional n)
   "Create or switch to OpenAI chat buffer, and return the buffer.
