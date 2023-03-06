@@ -843,6 +843,11 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "Default arguments for OpenAI Chat API."
   :type '(plist))
 
+(defcustom openai-chat-initial-system-content
+  nil
+  "Default initial system content."
+  :type 'string)
+
 (defcustom openai-chat-user-input-prompt
   (propertize "曰：" 'face '(:foreground "red"))
   "Prompt for user input."
@@ -864,6 +869,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "C-j" #'openai-chat-send
   "C-x C-s" #'openai-chat-save
   "C-c s a" #'openai-chat-save-as
+  "C-c s s" #'openai-chat-system-say
   "C-c r u i" #'openai-chat-reset-user-input)
 
 (define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
@@ -873,6 +879,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   (make-local-variable 'openai-chat-default-args)
   (make-local-variable 'openai-chat-user-input-beggining)
 
+  (openai-chat-system-say openai-chat-initial-system-content)
   (openai-chat-set-io-prompt))
 
 (defun openai-chat-set-io-prompt (&optional non-user)
@@ -896,6 +903,12 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
                      args
                    `[((role . ,(car args))
                       (content . ,(cadr args)))]))))
+
+(defun openai-chat-system-say (content)
+  "Put CONTENT as system's content to `openai-chat-messages'."
+  (interactive "sAs system say: ")
+  (if (length content)
+      (openai-chat-put-messages "system" content)))
 
 (defun openai-chat-reset-user-input ()
   "Reset user input.
@@ -975,7 +988,7 @@ If `openai-chat-file' is nil, call `openai-chat-save-as' interactively."
 
 (defun openai-chat-continue (file &optional n)
   "Create or switch to chat buffer, load chat file, return the buffer.
-If `openai-chat-messages' is not empty, will not load chat file.
+If `openai-chat-messages' is empty or only contain a system content, chat file will be load.
 FILE is a json file saved by `openai-chat-save' or `openai-chat-save-as'.
 As for N, check `openai-chat' for details."
   (interactive (list (read-file-name "Load the chat: "
@@ -983,7 +996,11 @@ As for N, check `openai-chat' for details."
                      current-prefix-arg))
   (with-current-buffer (openai-chat n)
     (when (and (file-exists-p file)
-               (= (length openai-chat-messages) 0))
+               (or (= (length openai-chat-messages) 0)
+                   (and (= (length openai-chat-messages) 1)
+                        (string= (alist-get 'role
+                                            (seq-elt openai-chat-messages 0))
+                                 "system"))))
       (let ((data (json-read-file file)))
         (setq openai-chat-file file
               openai-chat-messages (alist-get 'messages data))
