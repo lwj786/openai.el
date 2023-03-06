@@ -1001,10 +1001,14 @@ As for N, check `openai-chat' for details."
                  (c (alist-get 'content m)))
             (cond ((string= r "user")
                    (openai-chat-set-io-prompt)
-                   (insert c))
+                   (insert (propertize c
+                                       'read-only t
+                                       'rear-nonsticky '(read-only))))
                   ((string= r "assistant")
                    (openai-chat-set-io-prompt t)
-                   (insert c))))
+                   (insert (propertize c
+                                       'read-only t
+                                       'rear-nonsticky '(read-only))))))
           (setq i (1+ i))))
       (openai-chat-set-io-prompt)
       (current-buffer))))
