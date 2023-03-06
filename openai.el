@@ -32,6 +32,8 @@
 
 (require 'json)
 
+(require 'thingatpt)
+
 ;;; Library
 
 ;; Parameters
