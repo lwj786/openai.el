@@ -907,7 +907,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 (defun openai-chat-system-say (content)
   "Put CONTENT as system's content to `openai-chat-messages'."
   (interactive "sAs system say: ")
-  (if (length content)
+  (if (> (length content) 0)
       (openai-chat-put-messages "system" content)))
 
 (defun openai-chat-reset-user-input ()
