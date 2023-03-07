@@ -952,7 +952,7 @@ In an interactive call, use prefix argument to specify RESEND."
           (openai-chat-set-io-prompt) nil))))
 
 (defun openai-chat-save-as (file)
-  "Save the current chat as FILE and return the FILE.
+  "Save the current chat as FILE, set `openai-chat-file' to FILE, and return the FILE.
 
 Default directory is set by `openai-chat-dir'.
 In an interactive call, prompt for FILE, and default value is in \"chat-%Y%m%d%H%M%S.json\" format."
@@ -963,20 +963,20 @@ In an interactive call, prompt for FILE, and default value is in \"chat-%Y%m%d%H
                                                filename)
                                        openai-chat-dir
                                        filename))))
-  (if (derived-mode-p 'openai-chat-mode)
-      (let ((chat (openai--preprocess-request-data
-                   (plist-put openai-chat-default-args
-                              :messages
-                              openai-chat-messages)
-                   '(:model :messages
-                            :temperature :top_p :n
-                            :stream :stop :max_tokens
-                            :presence_penalty :frequency_penalty
-                            :logit_bias :user))))
-        (with-temp-buffer
-          (insert (json-encode chat))
-          (write-file file)
-          file))))
+  (when (derived-mode-p 'openai-chat-mode)
+    (let ((chat (openai--preprocess-request-data
+                 (plist-put openai-chat-default-args
+                            :messages
+                            openai-chat-messages)
+                 '(:model :messages
+                          :temperature :top_p :n
+                          :stream :stop :max_tokens
+                          :presence_penalty :frequency_penalty
+                          :logit_bias :user))))
+      (with-temp-buffer
+        (insert (json-encode chat))
+        (write-file file)))
+    (setq openai-chat-file file)))
 
 (defun openai-chat-save ()
   "Save current chat to `openai-chat-file', return the saved file.
