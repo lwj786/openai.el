@@ -39,7 +39,7 @@ API key 不要明文保存。
 _可使用 [[help:describe-variable][describe-variable]] （一般快捷键为 =C-h v= ）和 [[help:describe-function][describe-function]] （一般快捷键为 =C-h f= ）_
 分别查看函数和变量的详细说明。
 
-**注意：本包并未进行全面、充分测试。**
+*注意：本包并未进行全面、充分测试。*
 
 ** 库函数
 按照 [[https://platform.openai.com/docs/api-reference/][OpenAI 文档的 接口参考 章节]] 中说明的接口封装了如下函数：
@@ -72,7 +72,7 @@ _可使用 [[help:describe-variable][describe-variable]] （一般快捷键为 =
 
 一般地，对需要参数的的接口来说，最终发送的数据是 json 格式键值数据，而对应于上述封装函数的参数则是一个 plist 。
 
-即当 json 格式请求数据键值形如 ="{ "foo": "bar" }"= 时，调用本包的封装函数时参数应形如 =(:foo "bar")= 。
+即当 json 格式请求数据键值形如 ={ "foo": "bar" }= 时，调用本包的封装函数时参数应形如 =(:foo "bar")= 。
 
 以 [[help:openai-create-chat-completion][openai-create-chat-completion]] 为例：
 
