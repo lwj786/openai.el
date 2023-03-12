@@ -1,0 +1,198 @@
+openai.el 是对 OpenAI API 的 Elisp 封装。
+
+这个包提供了与 OpenAI API 交互的库，一些有用的命令（希望吧）和一个 OpenAI Chat 模式。
+
+* 安装配置
+** 安装
+当 Emacs 版本大于 29.1 时，可使用 [[help:package-vc-install][package-vc-install]] 命令来从 git 仓库直接安装包；
+
+否则，可使用 git clone 等方式下载至本地，后可在 init.el 中添加类似如下配置：
+
+#+BEGIN_SRC elisp
+  (add-to-list 'load-path path-to-openai.el)
+#+END_SRC
+
+** 配置
+*** 基本配置
+可在 init.el 中添加类似如下配置：
+
+#+BEGIN_SRC elisp
+  (require 'openai)
+  (setq openai-api-key (get-openai-api-key)
+        openai-organization nil)
+#+END_SRC
+
+[[help:openai-api-key][openai-api-key]] 必需，[[help:openai-organization][openai-organization]] 可选。
+
+API key 不要明文保存。
+
+*** 有关命令及模式的配置
+见说明节对应部分。
+
+*** 代理
+本包使用 [[help:url-retrieve-synchronously][url-retrieve-synchronously]] 来发送请求并接受响应。
+
+因此，如需使用代理，可通过配置变量 [[help:url-proxy-services][url-proxy-services]] 实现。
+
+
+* 说明
+_可使用 [[help:describe-variable][describe-variable]] （一般快捷键为 =C-h v= ）和 [[help:describe-function][describe-function]] （一般快捷键为 =C-h f= ）_
+分别查看函数和变量的详细说明。
+
+**注意：本包并未进行全面、充分测试。**
+
+** 库函数
+按照 [[https://platform.openai.com/docs/api-reference/][OpenAI 文档的 接口参考 章节]] 中说明的接口封装了如下函数：
+
+- [[help:openai-list-models][openai-list-models]]
+- [[help:openai-retrieve-model][openai-retrieve-model]]
+- [[help:openai-create-completion][openai-create-completion]]
+- [[help:openai-create-chat-completion][openai-create-chat-completion]]
+- [[help:openai-create-edit][openai-create-edit]]
+- [[help:openai-create-image][openai-create-image]]
+- [[help:openai-create-image-edit][openai-create-image-edit]]
+- [[help:openai-create-image-variation][openai-create-image-variation]]
+- [[help:openai-create-embedding][openai-create-embedding]]
+- [[help:openai-create-transcription][openai-create-transcription]]
+- [[help:openai-create-translation][openai-create-translation]]
+- [[help:openai-list-files][openai-list-files]]
+- [[help:openai-create-file][openai-create-file]]
+- [[help:openai-delete-file][openai-delete-file]]
+- [[help:openai-retrieve-file][openai-retrieve-file]]
+- [[help:openai-download-file][openai-download-file]]
+- [[help:openai-create-fine-tune][openai-create-fine-tune]]
+- [[help:openai-list-fine-tunes][openai-list-fine-tune]]
+- [[help:openai-retrieve-fine-tune][openai-retrieve-fine-tune]]
+- [[help:openai-cancel-fine-tune][openai-cancel-fine-tune]]
+- [[help:openai-list-fine-tune-events][openai-list-fine-tune-events]]
+- [[help:openai-delete-model][openai-delete-model]]
+- [[help:openai-create-moderation][openai-create-moderation]]
+
+与 OpenAI API 的交互本质上是通过 HTTP 请求完成的。
+
+一般地，对需要参数的的接口来说，最终发送的数据是 json 格式键值数据，而对应于上述封装函数的参数则是一个 plist 。
+
+即当 json 格式请求数据键值形如 ="{ "foo": "bar" }"= 时，调用本包的封装函数时参数应形如 =(:foo "bar")= 。
+
+以 [[help:openai-create-chat-completion][openai-create-chat-completion]] 为例：
+
+如预期发送以下请求：
+#+BEGIN_EXAMPLE
+{
+  "model": "gpt-3.5-turbo",
+  "messages": [{"role": "user", "content": "你好！"}]
+}
+#+END_EXAMPLE
+
+应按照如下形式调用：
+#+BEGIN_SRC elisp
+  (openai-create-chat-completion :model "gpt-3.5-turbo"
+                                 :messages '[((role . "user")
+                                              (content . "你好！"))])
+#+END_SRC
+
+
+特殊地，对于需要上传文件的接口来说，其使用 =multipart/form-data= 类型的请求来进行文件上传，
+对应上述封装函数的参数依然是 plist ，但对于表示文件的参数，其值（应当为路径）应该加以 =@= 前缀。
+
+以 [[help:openai-create-image-variation][openai-create-image-variation]] 为例：
+
+如预期以 ="512x512"= 大小生成某图片变体，则用到 =image= 和 =size= 参数
+
+因为 =image= 参数指定的是图片文件路径，因此应该类似如下调用：
+#+BEGIN_SRC elisp
+  (openai-create-image-variation :image "@/path/to/image.png"
+                                 :size "512x512")
+#+END_SRC
+
+** 命令
+针对 [[https://platform.openai.com/docs/guides/][OpenAI 文档的 指导 章节]] 中说明的部分情况编写了如下命令：
+
+- [[help:openai-complete-text][openai-complete-text]]
+- [[help:openai-complete-text-cat][openai-complete-text-cat]]
+- [[help:openai-edit-text][openai-edit-text]]
+- [[help:openai-complete-code][openai-complete-code]]
+- [[help:openai-complete-code-cat][openai-complete-code-cat]]
+- [[help:openai-edit-code][openai-edit-code]]
+- [[help:openai-complete-chat][openai-complete-chat]]
+- [[help:openai-generate-image][openai-generate-image]]
+- [[help:openai-edit-image][openai-edit-image]]
+- [[help:openai-generate-image-variation][openai-generate-image-variation]]
+
+上述命令参数构成类似，可分为三部分：显式 API 参数、与插入行为相关参数、隐式 API 参数。
+API 参数是指传给库函数的参数，需要指出的是这里的显式参数和库函数的中必要参数并非一个概念，
+显式 API 参数主要是对于该命令使用场景而言是必要或常用的，隐式 API 参数形式是与对应库函数一样的 plist 。
+
+另外对于每个命令，还有一个对应的 =*-default-args= 变量，用于配置默认传递给库函数的参数。
+
+显式 API 参数、隐式 API 参数、默认 API 参数变量三者共同作用指定了最终传递给库函数的参数，
+三者作用优先级顺序即按前述顺序排列。
+或者说显式 API 参数覆盖隐式 API 参数和默认 API 参数变量的值，而隐式 API 参数覆盖了默认 API 参数变量的值。
+
+设计目的在于：
++ 在交互调用情况下，显式 API 参数用于指定的必要或常用的每次不同的参数值，而默认 API 参数变量配置必要的共性参数；
++ 而在非交互调用情况下，则可直接通过隐式 API 参数补充指定显式 API 参数以外参数。
+
+以  [[help:openai-complete-text][openai-complete-text]] 为例：
+
+该命令参数及对应默认参数变量如下：
+#+BEGIN_SRC elisp
+  ;; openai-complete-text arglist
+  '(prompt &optional max_tokens ;; 显式 API 参数
+          buffer-or-name position ;; 与插入行为相关参数
+          &rest args) ;; 隐式 API 参数
+
+  ;; openai-complete-text-default-args
+  '(:model "text-davinci-003"
+           :prompt nil :suffix nil :max_tokens 128
+           :temperature nil :top_p nil :n nil
+           :stream nil :logprobs nil :stop nil)
+#+END_SRC
+
+有：
+#+BEGIN_SRC elisp
+  ;; 在 openai-complete-text-default-args 未修改的情况下，如下调用
+  (openai-complete-text "把大象放进冰箱需要如下三步：" nil
+                        nil nil
+                        :prompt "你好" :max_tokens 256)
+
+  ;; 则最终传递给 openai-create-completion 等价形式如下
+  (openai-create-completion :prompt "把大象放进冰箱需要如下三步："
+                            :max_tokens 256
+                            :model "text-davinci-003")
+#+END_SRC
+
+
+另外，对于生成图片相关的命令，默认情况下生成的图片会被插入当前 buffer ，
+如需要保存图片，可以使用 [[help:openai-save-image-at-point][openai-save-image-at-point]] 命令。
+默认情况下该命令会将图片以 sha1 值命名并保存在 ~(concat user-emacs-directory "images/")~ 路径下。
+
+
+** 模式
+交互情况下，命令 [[help:openai-create-chat-completion][openai-create-chat-completion]] 仅能提供单次对话，因此编写了一个聊天模式。
+
+使用 [[help:openai-chat][openai-chat]] 或 [[help:openai-chat-continue][openai-chat-continue]] 启动一个对话。
+
+两者区别在于：后者可通过指定之前保存的对话文件，导入对话历史并继续进行该对话。
+
+默认键绑定如下：
+
+- =C-j=		[[help:openai-chat-send][openai-chat-send]]
+- =C-x C-s=	[[help:openai-chat-save][openai-chat-save]]
+- =C-c s a=	[[help:openai-chat-save-as][openai-chat-save-as]]
+- =C-c s s=	[[help:openai-chat-system-say][openai-chat-system-say]]
+- =C-c r u i=	[[help:openai-chat-reset-user-input][openai-chat-reset-user-input]]
+
+使用 =C-j= 发送用户输入的消息并接受响应的消息。
+
+当遇到由于网络等问题，未得到响应的情况：
++ 可以通过加前缀参数，再次发送上次消息，即使用 =C-u C-j= ；
++ 或者使用 =C-c r u i= 重新开始新的用户输入。
+
+可配置默认变量如下：
+
+- [[help:openai-chat-default-args][openai-chat-default-args]]
+- [[help:openai-chat-initial-system-content][openai-chat-initial-system-content]]
+- [[help:openai-chat-user-input-prompt][openai-chat-user-input-prompt]]
+- [[help:openai-chat-assistant-output-prompt][openai-chat-assistant-output-prompt]]
+- [[help:openai-chat-dir][openai-chat-dir]]

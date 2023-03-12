@@ -1,4 +1,4 @@
-;;; openai.el -- a Elisp wrapper for use OpenAI's API -*- lexical-binding:t -*-
+;;; openai.el -- an Elisp wrapper for OpenAI API -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2023 Li Wujun
 
@@ -21,7 +21,8 @@
 
 ;;; Commentary:
 
-;; This package provides a library for interact with OpenAI's API.
+;; This package provides a library for interacting with OpenAI API,
+;; some helpful commands (hopefully) and an OpenAI Chat mode.
 
 ;;; Code:
 
