@@ -39,6 +39,10 @@
 
 ;; Parameters
 
+(defcustom openai-api-srv "https://api.openai.com"
+  "String used for set api server"
+  :type 'string)
+
 (defcustom openai-api-key nil
   "String used for authentication.
 Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
@@ -53,7 +57,7 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
 ;; Internal
 
 (defun openai--make-request (uri &optional data content-type method)
-  "Interact with api.openai.com through HTTP requests.
+  "Interact with `openai-api-srv' through HTTP requests.
 Return the response which decoded by `json-read'."
   (let ((url-request-method (or method (if data "POST" "GET")))
         (url-request-extra-headers
@@ -75,7 +79,7 @@ Return the response which decoded by `json-read'."
                                  (json-encode data)
                                  'utf-8)))))
     (with-current-buffer (url-retrieve-synchronously
-                          (concat "https://api.openai.com" uri))
+                          (concat openai-api-srv uri))
       (json-read-from-string
        (decode-coding-region (1+ (progn (goto-char (point-min))
                                         (search-forward-regexp "^$")))
