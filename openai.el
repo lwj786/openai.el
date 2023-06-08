@@ -52,6 +52,10 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
   "String used for specify organization whose subscription quota will be count against."
   :type 'string)
 
+(defcustom openai-enable-log nil
+  "The value is boolean—either `nil' or `t'. Enable log if is `t'"
+  :type 'boolean)
+
 ;; Functions
 
 ;; Internal
@@ -80,6 +84,12 @@ Return the response which decoded by `json-read'."
                                  'utf-8)))))
     (with-current-buffer (url-retrieve-synchronously
                           (concat openai-api-srv uri))
+      (when openai-enable-log
+        (let ((response (buffer-string)))
+          (with-current-buffer (get-buffer-create "OpenAI/Log")
+            (insert (format "\n%s =>\n%s"
+                            (format-time-string "%Y%m%d%H%M%S")
+                            response)))))
       (json-read-from-string
        (decode-coding-region (1+ (progn (goto-char (point-min))
                                         (search-forward-regexp "^$")))
