@@ -60,7 +60,7 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
 
 ;; Internal
 
-(defun openai--make-request (uri &optional data content-type method)
+(defun openai--make-request (uri &optional data content-type method callback cbargs)
   "Interact with `openai-api-srv' through HTTP requests.
 Return the response which decoded by `json-read'."
   (let ((url-request-method (or method (if data "POST" "GET")))
@@ -81,19 +81,23 @@ Return the response which decoded by `json-read'."
                                    (substring content-type 30))
                                 (encode-coding-string
                                  (json-encode data)
-                                 'utf-8)))))
-    (with-current-buffer (url-retrieve-synchronously
-                          (concat openai-api-srv uri))
-      (when openai-enable-log
-        (let ((response (buffer-string)))
-          (with-current-buffer (get-buffer-create "OpenAI/Log")
-            (insert (format "\n%s =>\n%s"
-                            (format-time-string "%Y%m%d%H%M%S")
-                            response)))))
-      (json-read-from-string
-       (decode-coding-region (1+ (progn (goto-char (point-min))
-                                        (search-forward-regexp "^$")))
-                             (point-max) 'utf-8 t)))))
+                                 'utf-8))))
+        (url (concat openai-api-srv uri))
+        (process-response (lambda (&optional status callback cbargs)
+                            (when openai-enable-log
+                              (let ((response (buffer-string)))
+                                (with-current-buffer (get-buffer-create "OpenAI/Log")
+                                  (insert (format "\n%s =>\n%s"
+                                                  (format-time-string "%Y%m%d%H%M%S")
+                                                  response)))))
+                            (let ((response (json-read-from-string
+                                             (decode-coding-region (1+ (progn (goto-char (point-min))
+                                                                              (search-forward-regexp "^$")))
+                                                                   (point-max) 'utf-8 t))))
+                              (if callback (apply callback response cbargs)
+                                response)))))
+    (if callback (url-retrieve url process-response (list callback cbargs))
+      (with-current-buffer (url-retrieve-synchronously url) (funcall process-response)))))
 
 (defun openai--preprocess-request-data (&optional args keywords content-type)
   "Preprocess request body data."
@@ -141,7 +145,14 @@ If there is a argument which for specify file path, the path must be prefixed wi
                                   ,method))
      (put ',(intern (concat "openai-" name))
           'function-documentation
-          ,docstring)))
+          ,docstring)
+     (defun ,(intern (concat "openai-" name "-async")) ,(append '(callback &optional cbargs) arglist)
+       (openai--make-request ,uri
+                             (funcall #'openai--preprocess-request-data
+                                      ,(cadr arglist) ,keywords ,content-type)
+                             ,content-type
+                             ,method
+                             callback cbargs))))
 
 ;; Models
 
@@ -953,17 +964,24 @@ In an interactive call, use prefix argument to specify RESEND."
               (unless resend
                 (openai-chat-put-messages "user" user-input))
               (openai-chat-set-io-prompt t)
-              (let* ((args (append
-                            `(,openai-chat-messages
-                              ,(current-buffer) nil nil
-                              (read-only t rear-nonsticky (read-only)))
-                            openai-chat-default-args))
-                     (response (apply #'openai-complete-chat args)))
-                (openai-chat-put-messages (alist-get
-                                           'message
-                                           (seq-elt (alist-get 'choices response) 0)))
-                (openai-chat-set-io-prompt)
-                response))
+              (let* ((args (append `(:messages ,openai-chat-messages)
+                                   openai-chat-default-args))
+                     (response-processor (lambda (response
+                                                  buffer-or-name position)
+                                           (with-current-buffer
+                                               buffer-or-name (goto-char position)
+                                               (let* ((message
+                                                       (alist-get 'message
+                                                                  (seq-elt (alist-get 'choices response) 0)))
+                                                      (content (alist-get 'content message)))
+                                                 (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only)))
+                                                         "\n")
+                                                 (openai-chat-put-messages message))))))
+                (apply #'openai-create-chat-completion-async
+                       response-processor
+                       `(,(current-buffer) ,(point))
+                       args)
+                (openai-chat-set-io-prompt)))
           (openai-chat-set-io-prompt) nil))))
 
 (defun openai-chat-save-as (file)
