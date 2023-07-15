@@ -903,7 +903,6 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   (setq-local openai-chat-messages '[])
   (setq-local openai-chat-file nil)
   (make-local-variable 'openai-chat-default-args)
-  (make-local-variable 'openai-chat-user-input-beggining)
 
   (openai-chat-system-say openai-chat-initial-system-content)
   (openai-chat-set-io-prompt))
@@ -917,9 +916,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
         (insert "\n"))
     (insert (propertize prompt
                         'read-only t
-                        'rear-nonsticky '(read-only))))
-  (or non-user
-      (setq openai-chat-user-input-beggining (point))))
+                        'rear-nonsticky '(read-only)))))
 
 (defun openai-chat-put-messages (&rest args)
   "ARGS should be a message or two string: role and content."
@@ -955,7 +952,11 @@ In an interactive call, use prefix argument to specify RESEND."
   (interactive "P")
   (if (derived-mode-p 'openai-chat-mode)
       (let ((user-input (buffer-substring-no-properties
-                         openai-chat-user-input-beggining
+                         (progn
+                           (goto-char (point-max))
+                           (+ (length openai-chat-user-input-prompt)
+                              (search-backward-regexp (concat "^"
+                                                              openai-chat-user-input-prompt))))
                          (point-max))))
         (if (or (length user-input)
                 resend)
