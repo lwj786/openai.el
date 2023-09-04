@@ -885,6 +885,14 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "Prompt for assistant output."
   :type 'string)
 
+(defcustom openai-chat-stop-here
+  (concat "\n"
+          (propertize (string-join (split-string "十有四年春西狩獲麟" "") "\n")
+                      'read-only t 'rear-nonsticky '(read-only))
+          "\n")
+  "Prompt for stop."
+  :type 'string)
+
 (defcustom openai-chat-dir
   (concat user-emacs-directory
           "openai/chat/")
@@ -894,6 +902,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 (defvar-keymap openai-chat-mode-map
   "C-j" #'openai-chat-send
   "C-x C-s" #'openai-chat-save
+  "C-c c c" #'openai-chat-clear
   "C-c s a" #'openai-chat-save-as
   "C-c s s" #'openai-chat-system-say
   "C-c r u i" #'openai-chat-reset-user-input)
@@ -984,6 +993,15 @@ In an interactive call, use prefix argument to specify RESEND."
                        args)
                 (openai-chat-set-io-prompt)))
           (openai-chat-set-io-prompt) nil))))
+
+(defun openai-chat-clear ()
+  "Clear chat to start new chat in current buffer."
+  (interactive)
+  (if (derived-mode-p 'openai-chat-mode)
+    (when (yes-or-no-p "Are you sure to clear current chat (consider saving it first) ?")
+      (goto-char (point-max))
+      (insert openai-chat-stop-here)
+      (openai-chat-mode))))
 
 (defun openai-chat-save-as (file)
   "Save the current chat as FILE, set `openai-chat-file' to FILE, and return the FILE.
