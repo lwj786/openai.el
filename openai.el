@@ -1027,6 +1027,7 @@ In an interactive call, prompt for FILE, and default value is in \"chat-%Y%m%d%H
                           :logit_bias :user))))
       (with-temp-buffer
         (insert (json-encode chat))
+        (json-pretty-print-buffer)
         (write-file file)))
     (setq openai-chat-file file)))
 
