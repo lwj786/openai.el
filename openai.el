@@ -977,7 +977,7 @@ In an interactive call, use prefix argument to specify RESEND."
               (let* ((args (append `(:messages ,openai-chat-messages)
                                    openai-chat-default-args))
                      (response-processor (lambda (response
-                                                  buffer-or-name position)
+                                              buffer-or-name position)
                                            (with-current-buffer
                                                buffer-or-name (goto-char position)
                                                (let* ((message
@@ -998,10 +998,10 @@ In an interactive call, use prefix argument to specify RESEND."
   "Clear chat to start new chat in current buffer."
   (interactive)
   (if (derived-mode-p 'openai-chat-mode)
-    (when (yes-or-no-p "Are you sure to clear current chat (consider saving it first) ?")
-      (goto-char (point-max))
-      (insert openai-chat-stop-here)
-      (openai-chat-mode))))
+      (when (yes-or-no-p "Are you sure to clear current chat (consider saving it first) ?")
+        (goto-char (point-max))
+        (insert openai-chat-stop-here)
+        (openai-chat-mode))))
 
 (defun openai-chat-save-as (file)
   "Save the current chat as FILE, set `openai-chat-file' to FILE, and return the FILE.
@@ -1058,10 +1058,9 @@ As for N, check `openai-chat' for details."
         (setq openai-chat-file file
               openai-chat-messages (alist-get 'messages data))
         (dolist (elt (mapcar #'car data))
-          (setq openai-chat-default-args
-                (plist-put openai-chat-default-args
-                           (intern (concat ":" (symbol-name elt)))
-                           (alist-get elt data)))))
+          (plist-put openai-chat-default-args
+                     (intern (concat ":" (symbol-name elt)))
+                     (alist-get elt data))))
       (let ((inhibit-read-only t)) (erase-buffer))
       (let ((i 0)
             (l (length openai-chat-messages)))
