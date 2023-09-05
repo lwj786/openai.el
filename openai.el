@@ -911,7 +911,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "OpenAI chat mode."
   (setq-local openai-chat-messages '[])
   (setq-local openai-chat-file nil)
-  (make-local-variable 'openai-chat-default-args)
+  (setq-local openai-chat-default-args (copy-tree openai-chat-default-args))
 
   (openai-chat-system-say openai-chat-initial-system-content)
   (openai-chat-set-io-prompt))
