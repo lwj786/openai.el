@@ -18,11 +18,12 @@ openai.el 是对 OpenAI API 的 Elisp 封装。
 
 #+BEGIN_SRC elisp
   (require 'openai)
-  (setq openai-api-key (get-openai-api-key)
+  (setq openai-api-srv "https://api.xxx.srv"
+        openai-api-key (get-openai-api-key)
         openai-organization nil)
 #+END_SRC
 
-[[help:openai-api-key][openai-api-key]] 必需，[[help:openai-organization][openai-organization]] 可选。
+[[help:openai-api-key][openai-api-key]] 必需，[[help:openai-api-srv][openai-api-srv]], [[help:openai-organization][openai-organization]] 可选，其中 API 服务默认为 [[https://api.openai.com]] 。
 
 API key 不要明文保存。
 
@@ -30,9 +31,16 @@ API key 不要明文保存。
 见说明节对应部分。
 
 *** 代理
-本包使用 [[help:url-retrieve-synchronously][url-retrieve-synchronously]] 来发送请求并接受响应。
+本包使用 [[help:url-retrieve-synchronously][url-retrieve-synchronously]], [[help:url-retrieve][url-retrieve]] 来发送请求并接受响应。
 
 因此，如需使用代理，可通过配置变量 [[help:url-proxy-services][url-proxy-services]] 实现。
+
+*** 调试
+可通过配置以下变量启用日志，输出在 buffer: OpenAI/Log
+
+#+BEGIN_SRC elisp
+  (setq openai-enable-log t)
+#+END_SRC
 
 
 * 说明
@@ -42,7 +50,7 @@ _可使用 [[help:describe-variable][describe-variable]] （一般快捷键为 =
 *注意：本包并未进行全面、充分测试。*
 
 ** 库函数
-按照 [[https://platform.openai.com/docs/api-reference/][OpenAI 文档的 接口参考 章节]] 中说明的接口封装了如下函数：
+按照 [[https://platform.openai.com/docs/api-reference/][OpenAI 文档的 接口参考 章节]] 中说明的接口封装了如下函数（函数名后加 =-async= 后缀即为异步版本接口）：
 
 - [[help:openai-list-models][openai-list-models]]
 - [[help:openai-retrieve-model][openai-retrieve-model]]
@@ -179,6 +187,7 @@ API 参数是指传给库函数的参数，需要指出的是这里的显式参�
 
 - =C-j=		[[help:openai-chat-send][openai-chat-send]]
 - =C-x C-s=	[[help:openai-chat-save][openai-chat-save]]
+- =C-c c c=	[[help:openai-chat-clear][openai-chat-clear]]
 - =C-c s a=	[[help:openai-chat-save-as][openai-chat-save-as]]
 - =C-c s s=	[[help:openai-chat-system-say][openai-chat-system-say]]
 - =C-c r u i=	[[help:openai-chat-reset-user-input][openai-chat-reset-user-input]]
