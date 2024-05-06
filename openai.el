@@ -909,6 +909,9 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 
 (define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
   "OpenAI chat mode."
+  (setq-local openai-api-srv openai-api-srv)
+  (setq-local openai-api-key openai-api-key)
+
   (setq-local openai-chat-messages '[])
   (setq-local openai-chat-file nil)
   (setq-local openai-chat-default-args (copy-tree openai-chat-default-args))
@@ -1082,17 +1085,18 @@ As for N, check `openai-chat' for details."
       (openai-chat-set-io-prompt)
       (current-buffer))))
 
-(defun openai-chat (&optional n)
+(defun openai-chat (&optional n name)
   "Create or switch to OpenAI chat buffer, and return the buffer.
 N specify the buffer with that number (create if not exist).
 
 In an interactive call, use numeric prefix arg N to create or switch specified buffer."
   (interactive "P")
-  (let ((buf (get-buffer-create (if n
-                                    (format "%s<%d>"
-                                            "OpenAI/Chat"
-                                            n)
-                                  "OpenAI/Chat"))))
+  (let* ((name (or name "Chat"))
+         (buf (get-buffer-create (if n
+                                     (format "OpenAI/%s<%d>"
+                                             name
+                                             n)
+                                   (format "OpenAI/%s" name)))))
     (pop-to-buffer buf)
     (with-current-buffer buf
       (or (derived-mode-p 'openai-chat-mode)
