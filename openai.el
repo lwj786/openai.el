@@ -60,7 +60,9 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
 
 ;; Internal
 
-(defun openai--make-request (uri &optional data content-type method callback cbargs)
+(defun openai--make-request (uri &optional data content-type method
+                                 callback cbargs
+                                 return-buffer?)
   "Interact with `openai-api-srv' through HTTP requests.
 Return the response which decoded by `json-read'."
   (let ((url-request-method (or method (if data "POST" "GET")))
@@ -96,8 +98,10 @@ Return the response which decoded by `json-read'."
                                                                    (point-max) 'utf-8 t))))
                               (if callback (apply callback response cbargs)
                                 response)))))
-    (if callback (url-retrieve url process-response (list callback cbargs))
-      (with-current-buffer (url-retrieve-synchronously url) (funcall process-response)))))
+    (if return-buffer?
+        (url-retrieve url (lambda (&rest args)))
+      (if callback (url-retrieve url process-response (list callback cbargs))
+        (with-current-buffer (url-retrieve-synchronously url) (funcall process-response))))))
 
 (defun openai--preprocess-request-data (&optional args keywords content-type)
   "Preprocess request body data."
@@ -146,13 +150,14 @@ If there is a argument which for specify file path, the path must be prefixed wi
      (put ',(intern (concat "openai-" name))
           'function-documentation
           ,docstring)
-     (defun ,(intern (concat "openai-" name "-async")) ,(append '(callback &optional cbargs) arglist)
+     (defun ,(intern (concat "openai-" name "-async")) ,(append '(&optional callback cbargs return-buffer?) arglist)
        (openai--make-request ,uri
                              (funcall #'openai--preprocess-request-data
                                       ,(cadr arglist) ,keywords ,content-type)
                              ,content-type
                              ,method
-                             callback cbargs))))
+                             callback cbargs
+                             return-buffer?))))
 
 ;; Models
 
@@ -990,10 +995,56 @@ In an interactive call, use prefix argument to specify RESEND."
                                                  (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only)))
                                                          "\n")
                                                  (openai-chat-put-messages message))))))
-                (apply #'openai-create-chat-completion-async
-                       response-processor
-                       `(,(current-buffer) ,(point))
-                       args)
+                (if (plist-get args :stream)
+                    (let ((tgt-buf (current-buffer))
+                          (tgt-pos (point)))
+                      (with-current-buffer (apply #'openai-create-chat-completion-async
+                                                  nil nil
+                                                  t
+                                                  args)
+                        (setq-local tgt-buf tgt-buf
+                                    tgt-pos tgt-pos
+
+                                    message (list (list 'role)
+                                                  (list 'content))
+
+                                    url-http-after-change-function
+                                    (lambda (beg end len)
+                                      (let ((data-string (decode-coding-string
+                                                          (buffer-substring-no-properties beg end)
+                                                          'utf-8)))
+                                        (dolist (each-line (split-string data-string "\n"))
+                                          (when (string-match
+                                                 "^data: \\({.*\\\"delta\\\":.*}\\)"
+                                                 each-line)
+                                            (let* ((choices0 (seq-elt (alist-get
+                                                                       'choices
+                                                                       (json-read-from-string
+                                                                        (match-string 1 each-line)))
+                                                                      0))
+                                                   (finish-reason (alist-get 'finish_reason choices0))
+                                                   (delta (alist-get 'delta choices0))
+                                                   (role (alist-get 'role delta))
+                                                   (content (alist-get 'content delta)))
+                                              (if role
+                                                  (setf (alist-get 'role message) role)
+                                                (setf (alist-get 'content message)
+                                                      (concat (alist-get 'content message) content)))
+                                              (setq tgt-pos
+                                                    (let ((tgt-pos tgt-pos)
+                                                          (message message))
+                                                      (with-current-buffer tgt-buf
+                                                        (if finish-reason
+                                                            (openai-chat-put-messages message))
+                                                        (goto-char tgt-pos)
+                                                        (insert (apply #'propertize
+                                                                       content
+                                                                       '(read-only t rear-nonsticky (read-only))))
+                                                        (point))))))))))))
+                  (apply #'openai-create-chat-completion-async
+                         response-processor
+                         `(,(current-buffer) ,(point))
+                         args))
                 (openai-chat-set-io-prompt)))
           (openai-chat-set-io-prompt) nil))))
 
