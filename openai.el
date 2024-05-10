@@ -1055,7 +1055,9 @@ In an interactive call, use prefix argument to specify RESEND."
       (when (yes-or-no-p "Are you sure to clear current chat (consider saving it first) ?")
         (goto-char (point-max))
         (insert openai-chat-stop-here)
-        (openai-chat-mode))))
+        (let ((openai-api-srv openai-api-srv)
+              (openai-api-key openai-api-key))
+          (openai-chat-mode)))))
 
 (defun openai-chat-save-as (file)
   "Save the current chat as FILE, set `openai-chat-file' to FILE, and return the FILE.
