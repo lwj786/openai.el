@@ -1056,7 +1056,8 @@ In an interactive call, use prefix argument to specify RESEND."
         (goto-char (point-max))
         (insert openai-chat-stop-here)
         (let ((openai-api-srv openai-api-srv)
-              (openai-api-key openai-api-key))
+              (openai-api-key openai-api-key)
+              (openai-chat-default-args openai-chat-default-args))
           (openai-chat-mode)))))
 
 (defun openai-chat-save-as (file)
@@ -1138,7 +1139,9 @@ As for N, check `openai-chat' for details."
       (openai-chat-set-io-prompt)
       (current-buffer))))
 
-(defun openai-chat (&optional n name)
+(defun openai-chat (&optional n name
+                              another-openai-api-srv another-openai-api-key
+                              another-openai-chat-default-args)
   "Create or switch to OpenAI chat buffer, and return the buffer.
 N specify the buffer with that number (create if not exist).
 
@@ -1153,7 +1156,13 @@ In an interactive call, use numeric prefix arg N to create or switch specified b
     (pop-to-buffer buf)
     (with-current-buffer buf
       (or (derived-mode-p 'openai-chat-mode)
-          (openai-chat-mode)))
+          (let ((openai-api-srv (or another-openai-api-srv
+                                    openai-api-srv))
+                (openai-api-key (or another-openai-api-key
+                                    openai-api-key))
+                (openai-chat-default-args (or another-openai-chat-default-args
+                                              openai-chat-default-args)))
+            (openai-chat-mode))))
     buf))
 
 
