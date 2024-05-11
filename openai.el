@@ -61,8 +61,7 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
 ;; Internal
 
 (defun openai--make-request (uri &optional data content-type method
-                                 callback cbargs
-                                 return-buffer?)
+                                 callback cbargs)
   "Interact with `openai-api-srv' through HTTP requests.
 Return the response which decoded by `json-read'."
   (let ((url-request-method (or method (if data "POST" "GET")))
@@ -98,9 +97,10 @@ Return the response which decoded by `json-read'."
                                                                    (point-max) 'utf-8 t))))
                               (if callback (apply callback response cbargs)
                                 response)))))
-    (if return-buffer?
-        (url-retrieve url (lambda (&rest args)))
-      (if callback (url-retrieve url process-response (list callback cbargs))
+    (if (functionp callback)
+        (url-retrieve url process-response (list callback cbargs))
+      (if callback
+          (url-retrieve url (lambda (x)))
         (with-current-buffer (url-retrieve-synchronously url) (funcall process-response))))))
 
 (defun openai--preprocess-request-data (&optional args keywords content-type)
@@ -150,14 +150,13 @@ If there is a argument which for specify file path, the path must be prefixed wi
      (put ',(intern (concat "openai-" name))
           'function-documentation
           ,docstring)
-     (defun ,(intern (concat "openai-" name "-async")) ,(append '(&optional callback cbargs return-buffer?) arglist)
+     (defun ,(intern (concat "openai-" name "-async")) ,(append '(&optional callback cbargs) arglist)
        (openai--make-request ,uri
                              (funcall #'openai--preprocess-request-data
                                       ,(cadr arglist) ,keywords ,content-type)
                              ,content-type
                              ,method
-                             callback cbargs
-                             return-buffer?))))
+                             callback cbargs))))
 
 ;; Models
 
@@ -999,8 +998,7 @@ In an interactive call, use prefix argument to specify RESEND."
                     (let ((tgt-buf (current-buffer))
                           (tgt-pos (point)))
                       (with-current-buffer (apply #'openai-create-chat-completion-async
-                                                  nil nil
-                                                  t
+                                                  t nil
                                                   args)
                         (setq-local tgt-buf tgt-buf
                                     tgt-pos tgt-pos
