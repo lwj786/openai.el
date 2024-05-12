@@ -956,6 +956,51 @@ Can be used when failed to recvice response."
   (if (derived-mode-p 'openai-chat-mode)
       (openai-chat-set-io-prompt)))
 
+(defun openai-chat--url-https-proxy-filter (proc data)
+  (let ((buf (process-buffer proc)))
+    (when (and (buffer-live-p buf)
+               (not (zerop (length data))))
+      (url-http-generic-filter proc data)
+      ;; set filter function to `openai-chat--url-http-sse-filter'
+      ;; after `url-https-proxy-after-change-function' set filter function
+      (if (= url-http-response-status 200)
+          (set-process-filter proc #'openai-chat--url-http-sse-filter)))))
+
+(defun openai-chat--url-http-sse-filter (proc data)
+  (let ((buf (process-buffer proc)))
+    (when (and (buffer-live-p buf)
+               (not (zerop (length data))))
+      (url-http-generic-filter proc data)
+      (with-current-buffer buf
+        (dolist (each-line (split-string (decode-coding-string data 'utf-8) "\n"))
+          (when (string-match
+                 "^data: \\({.*\\\"delta\\\":.*}\\)"
+                 each-line)
+            (let* ((choices0 (seq-elt (alist-get
+                                       'choices
+                                       (json-read-from-string
+                                        (match-string 1 each-line)))
+                                      0))
+                   (finish-reason (alist-get 'finish_reason choices0))
+                   (delta (alist-get 'delta choices0))
+                   (role (alist-get 'role delta))
+                   (content (alist-get 'content delta)))
+              (if role
+                  (setf (alist-get 'role openai-chat-message) role))
+              (setf (alist-get 'content openai-chat-message)
+                    (concat (alist-get 'content openai-chat-message) content))
+              (setq openai-chat-buffer-insert-point
+                    (let ((openai-chat-buffer-insert-point openai-chat-buffer-insert-point)
+                          (openai-chat-message openai-chat-message))
+                      (with-current-buffer openai-chat-buffer
+                        (if finish-reason
+                            (openai-chat-put-messages openai-chat-message))
+                        (goto-char openai-chat-buffer-insert-point)
+                        (insert (apply #'propertize
+                                       content
+                                       '(read-only t rear-nonsticky (read-only))))
+                        (point)))))))))))
+
 (defun openai-chat-send (&optional resend)
   "Send user's input, recvice response and insert it, put them to `openai-chat-messages'.
 Return the response which decoded by `json-read'.
@@ -995,50 +1040,21 @@ In an interactive call, use prefix argument to specify RESEND."
                                                          "\n")
                                                  (openai-chat-put-messages message))))))
                 (if (plist-get args :stream)
-                    (let ((tgt-buf (current-buffer))
-                          (tgt-pos (point)))
+                    (let ((openai-chat-buffer (current-buffer))
+                          (openai-chat-buffer-insert-point (point)))
                       (with-current-buffer (apply #'openai-create-chat-completion-async
                                                   t nil
                                                   args)
-                        (setq-local tgt-buf tgt-buf
-                                    tgt-pos tgt-pos
+                        (setq-local openai-chat-buffer openai-chat-buffer
+                                    openai-chat-buffer-insert-point openai-chat-buffer-insert-point
 
-                                    message (list (list 'role)
-                                                  (list 'content))
-
-                                    url-http-after-change-function
-                                    (lambda (beg end len)
-                                      (let ((data-string (decode-coding-string
-                                                          (buffer-substring-no-properties beg end)
-                                                          'utf-8)))
-                                        (dolist (each-line (split-string data-string "\n"))
-                                          (when (string-match
-                                                 "^data: \\({.*\\\"delta\\\":.*}\\)"
-                                                 each-line)
-                                            (let* ((choices0 (seq-elt (alist-get
-                                                                       'choices
-                                                                       (json-read-from-string
-                                                                        (match-string 1 each-line)))
-                                                                      0))
-                                                   (finish-reason (alist-get 'finish_reason choices0))
-                                                   (delta (alist-get 'delta choices0))
-                                                   (role (alist-get 'role delta))
-                                                   (content (alist-get 'content delta)))
-                                              (if role
-                                                  (setf (alist-get 'role message) role)
-                                                (setf (alist-get 'content message)
-                                                      (concat (alist-get 'content message) content)))
-                                              (setq tgt-pos
-                                                    (let ((tgt-pos tgt-pos)
-                                                          (message message))
-                                                      (with-current-buffer tgt-buf
-                                                        (if finish-reason
-                                                            (openai-chat-put-messages message))
-                                                        (goto-char tgt-pos)
-                                                        (insert (apply #'propertize
-                                                                       content
-                                                                       '(read-only t rear-nonsticky (read-only))))
-                                                        (point))))))))))))
+                                    openai-chat-message (list (list 'role)
+                                                              (list 'content)))
+                        (if (and url-http-proxy
+                                 (string= "https"
+                                          (url-type url-http-target-url)))
+                            (set-process-filter url-http-process #'openai-chat--url-https-proxy-filter)
+                          (set-process-filter url-http-process #'openai-chat--url-http-sse-filter))))
                   (apply #'openai-create-chat-completion-async
                          response-processor
                          `(,(current-buffer) ,(point))
