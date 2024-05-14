@@ -972,16 +972,23 @@ Can be used when failed to recvice response."
     (when (and (buffer-live-p buf)
                (not (zerop (length data))))
       (url-http-generic-filter proc data)
+      ;; 我不干有的是人干
+      ;; reuse work of `url-http-chunked-encoding-after-change-function'
+      ;; instead of process data directly
       (with-current-buffer buf
-        (dolist (each-line (split-string (decode-coding-string data 'utf-8) "\n"))
-          (when (string-match
-                 "^data: \\({.*\\\"delta\\\":.*}\\)"
-                 each-line)
-            (let* ((choices0 (seq-elt (alist-get
-                                       'choices
-                                       (json-read-from-string
-                                        (match-string 1 each-line)))
-                                      0))
+        (save-excursion
+          (goto-char openai-chat-latest-data-point)
+          (while (re-search-forward "^data: \\({.+}\\)[
+]"  ;; [\r\n]
+                                    nil t)
+            (setq openai-chat-latest-data-point (point))
+            (let* ((data (decode-coding-string (match-string 1) 'utf-8))
+                   (choices (alist-get
+                             'choices
+                             (json-read-from-string
+                              data)))
+                   (choices0 (if (> (length choices) 0)
+                                 (seq-elt choices 0)))
                    (finish-reason (alist-get 'finish_reason choices0))
                    (delta (alist-get 'delta choices0))
                    (role (alist-get 'role delta))
@@ -994,13 +1001,14 @@ Can be used when failed to recvice response."
                     (let ((openai-chat-buffer-insert-point openai-chat-buffer-insert-point)
                           (openai-chat-message openai-chat-message))
                       (with-current-buffer openai-chat-buffer
-                        (if finish-reason
-                            (openai-chat-put-messages openai-chat-message))
-                        (goto-char openai-chat-buffer-insert-point)
-                        (insert (apply #'propertize
-                                       content
-                                       '(read-only t rear-nonsticky (read-only))))
-                        (point)))))))))))
+                        (save-excursion
+                          (if finish-reason
+                              (openai-chat-put-messages openai-chat-message))
+                          (goto-char openai-chat-buffer-insert-point)
+                          (insert (apply #'propertize
+                                         content
+                                         '(read-only t rear-nonsticky (read-only))))
+                          (point))))))))))))
 
 (defun openai-chat-send (&optional resend)
   "Send user's input, recvice response and insert it, put them to `openai-chat-messages'.
@@ -1046,7 +1054,9 @@ In an interactive call, use prefix argument to specify RESEND."
                       (with-current-buffer (apply #'openai-create-chat-completion-async
                                                   t nil
                                                   args)
-                        (setq-local openai-chat-buffer openai-chat-buffer
+                        (setq-local openai-chat-latest-data-point (point-min)
+
+                                    openai-chat-buffer openai-chat-buffer
                                     openai-chat-buffer-insert-point openai-chat-buffer-insert-point
 
                                     openai-chat-message (list (list 'role)
