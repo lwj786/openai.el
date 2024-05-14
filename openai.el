@@ -963,8 +963,9 @@ Can be used when failed to recvice response."
       (url-http-generic-filter proc data)
       ;; set filter function to `openai-chat--url-http-sse-filter'
       ;; after `url-https-proxy-after-change-function' set filter function
-      (if (= url-http-response-status 200)
-          (set-process-filter proc #'openai-chat--url-http-sse-filter)))))
+      (with-current-buffer buf
+        (if (= url-http-response-status 200)
+            (set-process-filter proc #'openai-chat--url-http-sse-filter))))))
 
 (defun openai-chat--url-http-sse-filter (proc data)
   (let ((buf (process-buffer proc)))
