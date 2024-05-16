@@ -43,6 +43,10 @@
   "String used for set api server"
   :type 'string)
 
+(defcustom openai-api-ver "v1"
+  "String used for set api version"
+  :type 'string)
+
 (defcustom openai-api-key nil
   "String used for authentication.
 Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
@@ -83,7 +87,7 @@ Return the response which decoded by `json-read'."
                                 (encode-coding-string
                                  (json-encode data)
                                  'utf-8))))
-        (url (concat openai-api-srv uri))
+        (url (concat openai-api-srv "/" openai-api-ver uri))
         (process-response (lambda (&optional status callback cbargs)
                             (when openai-enable-log
                               (let ((response (buffer-string)))
@@ -169,12 +173,12 @@ If there is a argument which for specify file path, the path must be prefixed wi
 (openai--define-api "list-models" ()
                     (openai--gen-docstring
                      "List models which currently available with its basic infomation.")
-                    "/v1/models")
+                    "/models")
 
 (openai--define-api "retrieve-model" (model)
                     (openai--gen-docstring
                      "Retrieve a model instance with its basic infomation by its ID.")
-                    (concat "/v1/models/" model))
+                    (concat "/models/" model))
 
 ;; Completions
 
@@ -189,7 +193,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/completions/create")))
   (openai--define-api "create-completion" (&rest args)
                       docstring
-                      "/v1/completions"
+                      "/completions"
                       keywords))
 
 ;; Chat
@@ -206,7 +210,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/chat/create")))
   (openai--define-api "create-chat-completion" (&rest args)
                       docstring
-                      "/v1/chat/completions"
+                      "/chat/completions"
                       keywords))
 
 ;; Edits
@@ -221,7 +225,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/edits/create")))
   (openai--define-api "create-edit" (&rest args)
                       docstring
-                      "/v1/edits"
+                      "/edits"
                       keywords))
 
 ;; Images
@@ -235,7 +239,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/images/create")))
   (openai--define-api "create-image" (&rest args)
                       docstring
-                      "/v1/images/generations"
+                      "/images/generations"
                       keywords))
 
 (let* ((keywords '(:image
@@ -248,7 +252,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/images/create-edit")))
   (openai--define-api "create-image-edit" (&rest args)
                       docstring
-                      "/v1/images/edits"
+                      "/images/edits"
                       keywords
                       (concat "multipart/form-data; boundary="
                               (mml-compute-boundary nil))))
@@ -262,7 +266,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/images/create-variation")))
   (openai--define-api "create-image-variation" (&rest args)
                       docstring
-                      "/v1/images/variations"
+                      "/images/variations"
                       keywords
                       (concat "multipart/form-data; boundary="
                               (mml-compute-boundary nil))))
@@ -277,7 +281,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/embeddings/create")))
   (openai--define-api "create-embedding" (&rest args)
                       docstring
-                      "/v1/embeddings"
+                      "/embeddings"
                       keywords))
 
 ;; Audio
@@ -292,7 +296,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/audio/create")))
   (openai--define-api "create-transcription" (&rest args)
                       docstring
-                      "/v1/audio/transcriptions"
+                      "/audio/transcriptions"
                       keywords
                       (concat "multipart/form-data; boundary="
                               (mml-compute-boundary nil))))
@@ -306,7 +310,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/audio/create")))
   (openai--define-api "create-translation" (&rest args)
                       docstring
-                      "/v1/audio/translations"
+                      "/audio/translations"
                       keywords
                       (concat "multipart/form-data; boundary="
                               (mml-compute-boundary nil))))
@@ -316,7 +320,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
 (openai--define-api "list-files" ()
                     (openai--gen-docstring
                      "List files belonging to the user's organization.")
-                    "/v1/files")
+                    "/files")
 
 (let* ((keywords '(:file :purpose))
        (docstring (openai--gen-docstring
@@ -326,7 +330,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/files/upload")))
   (openai--define-api "create-file" (&rest args)
                       docstring
-                      "/v1/files"
+                      "/files"
                       keywords
                       (concat "multipart/form-data; boundary="
                               (mml-compute-boundary nil))))
@@ -334,19 +338,19 @@ If there is a argument which for specify file path, the path must be prefixed wi
 (openai--define-api "delete-file" (file_id)
                     (openai--gen-docstring
                      "Delete a file.")
-                    (concat "/v1/files/" file_id)
+                    (concat "/files/" file_id)
                     nil nil
                     "DELETE")
 
 (openai--define-api "retrieve-file" (file_id)
                     (openai--gen-docstring
                      "Retrieve a file's infomation.")
-                    (concat "/v1/files/" file_id))
+                    (concat "/files/" file_id))
 
 (openai--define-api "download-file" (file_id)
                     (openai--gen-docstring
                      "Get the file's content.")
-                    (concat "/v1/files/" file_id "/content"))
+                    (concat "/files/" file_id "/content"))
 
 ;; Fine-tunes
 
@@ -363,33 +367,33 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/fine-tunes/create")))
   (openai--define-api "create-fine-tune" (&rest args)
                       docstring
-                      "/v1/fine-tunes"
+                      "/fine-tunes"
                       keywords))
 
 (openai--define-api "list-fine-tunes" ()
                     (openai--gen-docstring
                      "List fine-tuning jobs.")
-                    "/v1/fine-tunes")
+                    "/fine-tunes")
 
 (openai--define-api "retrieve-fine-tune" (fine-tune-id)
                     (openai--gen-docstring
                      "Retrieve the fine-tuning job's infomation.")
-                    (concat "/v1/fine-tunes/" fine_tune_id))
+                    (concat "/fine-tunes/" fine_tune_id))
 
 (openai--define-api "cancel-fine-tune" (fine-tune-id)
                     (openai--gen-docstring
                      "Cancel a fine-tuning job.")
-                    (concat "/v1/fine-tunes/" fine-tune-id "/cancel"))
+                    (concat "/fine-tunes/" fine-tune-id "/cancel"))
 
 (openai--define-api "list-fine-tune-events" (fine_tune_id)
                     (openai--gen-docstring
                      "List the fine-tuning job's status.")
-                    (concat "/v1/fine-tunes/" fine-tune-id "/events"))
+                    (concat "/fine-tunes/" fine-tune-id "/events"))
 
 (openai--define-api "delete-model" (model)
                     (openai--gen-docstring
                      "Delete a fine-tuned model.")
-                    (concat "/v1/models/" model)
+                    (concat "/models/" model)
                     nil nil
                     "DELETE")
 
@@ -403,7 +407,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                    "https://platform.openai.com/docs/api-reference/moderations/create")))
   (openai--define-api "create-moderation" (&rest args)
                       docstring
-                      "/v1/moderations"
+                      "/moderations"
                       keywords))
 
 ;;; Commands
@@ -920,7 +924,9 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
 (define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
   "OpenAI chat mode."
   (setq-local openai-api-srv openai-api-srv)
+  (setq-local openai-api-ver openai-api-ver)
   (setq-local openai-api-key openai-api-key)
+  (setq-local openai-organization openai-organization)
 
   (setq-local openai-chat-messages '[])
   (setq-local openai-chat-file nil)
@@ -1087,8 +1093,11 @@ In an interactive call, use prefix argument to specify RESEND."
         (goto-char (point-max))
         (insert openai-chat-stop-here)
         (let ((openai-api-srv openai-api-srv)
+              (openai-api-ver openai-api-ver)
               (openai-api-key openai-api-key)
-              (openai-chat-default-args openai-chat-default-args))
+              (openai-organization openai-organization)
+              (openai-chat-default-args openai-chat-default-args)
+              (openai-chat-initial-system-content openai-chat-initial-system-content))
           (openai-chat-mode)))))
 
 (defun openai-chat-save-as (file)
@@ -1171,8 +1180,7 @@ As for N, check `openai-chat' for details."
       (current-buffer))))
 
 (defun openai-chat (&optional n name
-                              another-openai-api-srv another-openai-api-key
-                              another-openai-chat-default-args)
+                              &rest args)
   "Create or switch to OpenAI chat buffer, and return the buffer.
 N specify the buffer with that number (create if not exist).
 
@@ -1187,12 +1195,18 @@ In an interactive call, use numeric prefix arg N to create or switch specified b
     (pop-to-buffer buf)
     (with-current-buffer buf
       (or (derived-mode-p 'openai-chat-mode)
-          (let ((openai-api-srv (or another-openai-api-srv
+          (let ((openai-api-srv (or (plist-get args :api-srv)
                                     openai-api-srv))
-                (openai-api-key (or another-openai-api-key
+                (openai-api-ver (or (plist-get args :api-ver)
+                                    openai-api-ver))
+                (openai-api-key (or (plist-get args :api-key)
                                     openai-api-key))
-                (openai-chat-default-args (or another-openai-chat-default-args
-                                              openai-chat-default-args)))
+                (openai-organization (or (plist-get args :organization)
+                                         openai-organization))
+                (openai-chat-default-args (or (plist-get args :chat-default-args)
+                                              openai-chat-default-args))
+                (openai-chat-initial-system-content (or (plist-get args :initial-system-content)
+                                                        openai-chat-initial-system-content)))
             (openai-chat-mode))))
     buf))
 
