@@ -88,13 +88,19 @@ Return the response which decoded by `json-read'."
                             (when openai-enable-log
                               (let ((response (buffer-string)))
                                 (with-current-buffer (get-buffer-create "OpenAI/Log")
+                                  (goto-char (point-max))
                                   (insert (format "\n%s =>\n%s"
                                                   (format-time-string "%Y%m%d%H%M%S")
-                                                  response)))))
-                            (let ((response (json-read-from-string
-                                             (decode-coding-region (1+ (progn (goto-char (point-min))
-                                                                              (search-forward-regexp "^$")))
-                                                                   (point-max) 'utf-8 t))))
+                                                  (decode-coding-string response 'utf-8))))))
+                            (let* ((response-string (decode-coding-region
+                                                     (1+ (progn (goto-char (point-min))
+                                                                (search-forward-regexp "^$")))
+                                                     (point-max)
+                                                     'utf-8
+                                                     t))
+                                   (response (condition-case err
+                                                 (json-read-from-string response-string)
+                                               (json-readtable-error response-string))))
                               (if callback (apply callback response cbargs)
                                 response)))))
     (if (functionp callback)
@@ -1052,7 +1058,7 @@ In an interactive call, use prefix argument to specify RESEND."
                     (let ((openai-chat-buffer (current-buffer))
                           (openai-chat-buffer-insert-point (point)))
                       (with-current-buffer (apply #'openai-create-chat-completion-async
-                                                  t nil
+                                                  (lambda (s)) nil
                                                   args)
                         (setq-local openai-chat-latest-data-point (point-min)
 
