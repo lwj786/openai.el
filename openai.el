@@ -1007,20 +1007,23 @@ Can be used when failed to recvice response."
                    (content (alist-get 'content delta)))
               (if role
                   (setf (alist-get 'role openai-chat-message) role))
-              (setf (alist-get 'content openai-chat-message)
-                    (concat (alist-get 'content openai-chat-message) content))
-              (setq openai-chat-buffer-insert-point
-                    (let ((openai-chat-buffer-insert-point openai-chat-buffer-insert-point)
-                          (openai-chat-message openai-chat-message))
-                      (with-current-buffer openai-chat-buffer
-                        (save-excursion
-                          (if finish-reason
-                              (openai-chat-put-messages openai-chat-message))
-                          (goto-char openai-chat-buffer-insert-point)
-                          (insert (apply #'propertize
-                                         content
-                                         '(read-only t rear-nonsticky (read-only))))
-                          (point))))))))))))
+              (when content
+                (setf (alist-get 'content openai-chat-message)
+                      (concat (alist-get 'content openai-chat-message) content))
+                (setq openai-chat-buffer-insert-point
+                      (let ((openai-chat-buffer-insert-point openai-chat-buffer-insert-point)
+                            (openai-chat-message openai-chat-message))
+                        (with-current-buffer openai-chat-buffer
+                          (save-excursion
+                            (goto-char openai-chat-buffer-insert-point)
+                            (insert (apply #'propertize
+                                           content
+                                           '(read-only t rear-nonsticky (read-only))))
+                            (point))))))
+              (if finish-reason
+                  (let ((openai-chat-message openai-chat-message))
+                    (with-current-buffer openai-chat-buffer
+                      (openai-chat-put-messages openai-chat-message)))))))))))
 
 (defun openai-chat-send (&optional resend)
   "Send user's input, recvice response and insert it, put them to `openai-chat-messages'.
