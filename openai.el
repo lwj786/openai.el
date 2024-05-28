@@ -47,6 +47,9 @@
   "String used for set api version"
   :type 'string)
 
+(defvar openai-api-url nil
+  "String used for set api url")
+
 (defcustom openai-api-key nil
   "String used for authentication.
 Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
@@ -87,7 +90,8 @@ Return the response which decoded by `json-read'."
                                 (encode-coding-string
                                  (json-encode data)
                                  'utf-8))))
-        (url (concat openai-api-srv "/" openai-api-ver uri))
+        (url (or openai-api-url
+                 (concat openai-api-srv "/" openai-api-ver uri)))
         (process-response (lambda (&optional status callback cbargs)
                             (when openai-enable-log
                               (let ((response (buffer-string)))
