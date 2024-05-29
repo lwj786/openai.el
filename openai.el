@@ -71,46 +71,52 @@ Visit URL `https://platform.openai.com/account/api-keys' to retrieve it."
                                  callback cbargs)
   "Interact with `openai-api-srv' through HTTP requests.
 Return the response which decoded by `json-read'."
-  (let ((url-request-method (or method (if data "POST" "GET")))
-        (url-request-extra-headers
-         (append
-          `(("Authorization" . ,(encode-coding-string
-                                 (concat "Bearer " openai-api-key)
-                                 'utf-8)))
-          (if openai-organization
-              `(("OpenAI-Organization" . ,openai-organization)))
-          (if data
-              `(("Content-Type" . ,(or content-type "application/json"))))))
-        (url-request-data (if data
-                              (if (string-match-p "^multipart/form-data;"
-                                                  (or content-type ""))
-                                  (mm-url-encode-multipart-form-data
-                                   data
-                                   (substring content-type 30))
-                                (encode-coding-string
-                                 (json-encode data)
-                                 'utf-8))))
-        (url (or openai-api-url
-                 (concat openai-api-srv "/" openai-api-ver uri)))
-        (process-response (lambda (&optional status callback cbargs)
-                            (when openai-enable-log
-                              (let ((response (buffer-string)))
-                                (with-current-buffer (get-buffer-create "OpenAI/Log")
-                                  (goto-char (point-max))
-                                  (insert (format "\n%s =>\n%s"
-                                                  (format-time-string "%Y%m%d%H%M%S")
-                                                  (decode-coding-string response 'utf-8))))))
-                            (let* ((response-string (decode-coding-region
-                                                     (1+ (progn (goto-char (point-min))
-                                                                (search-forward-regexp "^$")))
-                                                     (point-max)
-                                                     'utf-8
-                                                     t))
-                                   (response (condition-case err
-                                                 (json-read-from-string response-string)
-                                               (json-readtable-error response-string))))
-                              (if callback (apply callback response cbargs)
-                                response)))))
+  (let* ((content-type (or content-type "application/json"))
+         (multipart-form-data-boundary (mml-compute-boundary data))
+
+         (url-request-method (or method (if data "POST" "GET")))
+         (url-request-extra-headers
+          (append
+           `(("Authorization" . ,(encode-coding-string
+                                  (concat "Bearer " openai-api-key)
+                                  'utf-8)))
+           (if openai-organization
+               `(("OpenAI-Organization" . ,openai-organization)))
+           (if data
+               `(("Content-Type" . ,(if (string= "multipart/form-data" content-type)
+                                        (concat content-type
+                                                "; boundary="
+                                                multipart-form-data-boundary)
+                                      content-type))))))
+         (url-request-data (if data
+                               (if (string= "multipart/form-data" content-type)
+                                   (mm-url-encode-multipart-form-data
+                                    data
+                                    multipart-form-data-boundary)
+                                 (encode-coding-string
+                                  (json-encode data)
+                                  'utf-8))))
+         (url (or openai-api-url
+                  (concat openai-api-srv "/" openai-api-ver uri)))
+         (process-response (lambda (&optional status callback cbargs)
+                             (when openai-enable-log
+                               (let ((response (buffer-string)))
+                                 (with-current-buffer (get-buffer-create "OpenAI/Log")
+                                   (goto-char (point-max))
+                                   (insert (format "\n%s =>\n%s"
+                                                   (format-time-string "%Y%m%d%H%M%S")
+                                                   (decode-coding-string response 'utf-8))))))
+                             (let* ((response-string (decode-coding-region
+                                                      (1+ (progn (goto-char (point-min))
+                                                                 (search-forward-regexp "^$")))
+                                                      (point-max)
+                                                      'utf-8
+                                                      t))
+                                    (response (condition-case err
+                                                  (json-read-from-string response-string)
+                                                (json-readtable-error response-string))))
+                               (if callback (apply callback response cbargs)
+                                 response)))))
     (if (functionp callback)
         (url-retrieve url process-response (list callback cbargs))
       (if callback
@@ -123,8 +129,8 @@ Return the response which decoded by `json-read'."
          (v (plist-get args k)))
     (if (and k v)
         (cons
-         (if (and (string-match-p "^multipart/form-data;"
-                                  (or content-type "application/json"))
+         (if (and (string= "multipart/form-data"
+                           (or content-type "application/json"))
                   (and (stringp v)
                        (string-match-p "^@" v)))
              `("file" . (("name" . ,(substring (symbol-name k) 1))
@@ -258,8 +264,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                       docstring
                       "/images/edits"
                       keywords
-                      (concat "multipart/form-data; boundary="
-                              (mml-compute-boundary nil))))
+                      "multipart/form-data"))
 
 (let* ((keywords '(:image
                    :n :size :response_format :user))
@@ -272,8 +277,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                       docstring
                       "/images/variations"
                       keywords
-                      (concat "multipart/form-data; boundary="
-                              (mml-compute-boundary nil))))
+                      "multipart/form-data"))
 
 ;; Embeddings
 
@@ -302,8 +306,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                       docstring
                       "/audio/transcriptions"
                       keywords
-                      (concat "multipart/form-data; boundary="
-                              (mml-compute-boundary nil))))
+                      "multipart/form-data"))
 
 (let* ((keywords '(:file :model
                          :prompt :response_format :temperature))
@@ -316,8 +319,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                       docstring
                       "/audio/translations"
                       keywords
-                      (concat "multipart/form-data; boundary="
-                              (mml-compute-boundary nil))))
+                      "multipart/form-data"))
 
 ;; Files
 
@@ -336,8 +338,7 @@ If there is a argument which for specify file path, the path must be prefixed wi
                       docstring
                       "/files"
                       keywords
-                      (concat "multipart/form-data; boundary="
-                              (mml-compute-boundary nil))))
+                      "multipart/form-data"))
 
 (openai--define-api "delete-file" (file_id)
                     (openai--gen-docstring
