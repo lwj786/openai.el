@@ -90,9 +90,10 @@ Return the response which decoded by `json-read'."
                                       content-type))))))
          (url-request-data (if data
                                (if (string= "multipart/form-data" content-type)
-                                   (mm-url-encode-multipart-form-data
-                                    data
-                                    multipart-form-data-boundary)
+                                   (string-replace "Content-Transfer-Encoding: binary\r\n" ""
+                                                   (mm-url-encode-multipart-form-data
+                                                    data
+                                                    multipart-form-data-boundary))
                                  (encode-coding-string
                                   (json-encode data)
                                   'utf-8))))
