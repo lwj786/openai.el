@@ -211,8 +211,14 @@ If there is a argument which for specify file path, the path must be prefixed wi
 
 (let* ((keywords '(:model :messages
                           :temperature :top_p :n
-                          :stream :stop :max_tokens
+                          :seed :response_format
+                          :stream :stream_options
+                          :stop
+                          :max_tokens :max_completion_tokens
+                          :tools :tool_choice :parallel_tool_calls
+                          :functions :function_call
                           :presence_penalty :frequency_penalty
+                          :logprobs :top_logprobs
                           :logit_bias :user))
        (docstring (openai--gen-docstring
                    "Create a cat completion for given chat conversation."
