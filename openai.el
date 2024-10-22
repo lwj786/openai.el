@@ -104,7 +104,7 @@ Return the response which decoded by `json-read'."
                                (let ((response (buffer-string)))
                                  (with-current-buffer (get-buffer-create "OpenAI/Log")
                                    (goto-char (point-max))
-                                   (insert (format "\n%s =>\n%s"
+                                   (insert (format "\n%s <==\n%s"
                                                    (format-time-string "%Y%m%d%H%M%S")
                                                    (decode-coding-string response 'utf-8))))))
                              (let* ((response-string (decode-coding-region
@@ -118,6 +118,12 @@ Return the response which decoded by `json-read'."
                                                 (json-readtable-error response-string))))
                                (if callback (apply callback response cbargs)
                                  response)))))
+    (when openai-enable-log
+      (with-current-buffer (get-buffer-create "OpenAI/Log")
+        (goto-char (point-max))
+        (insert (format "\n%s ==>\n%s"
+                        (format-time-string "%Y%m%d%H%M%S")
+                        (format "data: %s\n" url-request-data)))))
     (if (functionp callback)
         (url-retrieve url process-response (list callback cbargs))
       (if callback
