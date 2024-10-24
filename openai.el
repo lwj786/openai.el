@@ -939,7 +939,11 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "C-c s s" #'openai-chat-system-say
   "C-c r u i" #'openai-chat-reset-user-input)
 
-(define-derived-mode openai-chat-mode fundamental-mode "OpenAI/Chat"
+(define-derived-mode openai-chat-mode fundamental-mode
+  '("OpenAI/Chat "
+    (:eval (if openai-chat-waiting-response?
+               (propertize "✨Waiting...✨" 'face '(:foreground "yellow"))
+             (propertize "✨Ready✨" 'face '(:foreground "green")))))
   "OpenAI chat mode."
   (setq-local openai-api-srv openai-api-srv)
   (setq-local openai-api-ver openai-api-ver)
@@ -949,6 +953,8 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   (setq-local openai-chat-messages '[])
   (setq-local openai-chat-file nil)
   (setq-local openai-chat-default-args (copy-tree openai-chat-default-args))
+
+  (setq-local openai-chat-waiting-response? nil)
 
   (openai-chat-system-say openai-chat-initial-system-content)
   (openai-chat-set-io-prompt))
@@ -1053,7 +1059,8 @@ can be used when failed to recvice response.
 
 In an interactive call, use prefix argument to specify RESEND."
   (interactive "P")
-  (if (derived-mode-p 'openai-chat-mode)
+  (if (and (derived-mode-p 'openai-chat-mode)
+           (not openai-chat-waiting-response?))
       (let ((user-input (buffer-substring-no-properties
                          (progn
                            (goto-char (point-max))
@@ -1080,12 +1087,17 @@ In an interactive call, use prefix argument to specify RESEND."
                                                       (content (alist-get 'content message)))
                                                  (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only)))
                                                          "\n")
-                                                 (openai-chat-put-messages message))))))
+                                                 (openai-chat-put-messages message))
+                                               (setq openai-chat-waiting-response? nil)))))
+                (setq openai-chat-waiting-response? t)
                 (if (plist-get args :stream)
                     (let ((openai-chat-buffer (current-buffer))
                           (openai-chat-buffer-insert-point (point)))
                       (with-current-buffer (apply #'openai-create-chat-completion-async
-                                                  (lambda (s)) nil
+                                                  (lambda (s b)
+                                                    (with-current-buffer b
+                                                      (setq openai-chat-waiting-response? nil)))
+                                                  `(,openai-chat-buffer)
                                                   args)
                         (setq-local openai-chat-latest-data-point (point-min)
 
