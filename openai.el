@@ -47,6 +47,10 @@
   "String used for set api version"
   :type 'string)
 
+(defcustom openai-api-baseurl nil
+  "String used for set api base url"
+  :type 'string)
+
 (defvar openai-api-url nil
   "String used for set api url")
 
@@ -98,7 +102,8 @@ Return the response which decoded by `json-read'."
                                   (json-encode data)
                                   'utf-8))))
          (url (or openai-api-url
-                  (concat openai-api-srv "/" openai-api-ver uri)))
+                  (concat (or openai-api-baseurl
+                              (concat openai-api-srv "/" openai-api-ver)) uri)))
          (process-response (lambda (&optional status callback cbargs)
                              (when openai-enable-log
                                (let ((response (buffer-string)))
@@ -947,6 +952,7 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "OpenAI chat mode."
   (setq-local openai-api-srv openai-api-srv)
   (setq-local openai-api-ver openai-api-ver)
+  (setq-local openai-api-baseurl openai-api-baseurl)
   (setq-local openai-api-key openai-api-key)
   (setq-local openai-organization openai-organization)
 
@@ -1131,6 +1137,7 @@ In an interactive call, use prefix argument to specify RESEND."
         (insert openai-chat-stop-here)
         (let ((openai-api-srv openai-api-srv)
               (openai-api-ver openai-api-ver)
+              (openai-api-baseurl openai-api-baseurl)
               (openai-api-key openai-api-key)
               (openai-organization openai-organization)
               (openai-chat-default-args openai-chat-default-args)
@@ -1236,6 +1243,8 @@ In an interactive call, use numeric prefix arg N to create or switch specified b
                                     openai-api-srv))
                 (openai-api-ver (or (plist-get args :api-ver)
                                     openai-api-ver))
+                (openai-api-baseurl (or (plist-get args :api-baseurl)
+                                    openai-api-baseurl))
                 (openai-api-key (or (plist-get args :api-key)
                                     openai-api-key))
                 (openai-organization (or (plist-get args :organization)
