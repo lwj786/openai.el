@@ -120,7 +120,7 @@ Return the response which decoded by `json-read'."
                                                       t))
                                     (response (condition-case err
                                                   (json-read-from-string response-string)
-                                                (json-readtable-error response-string))))
+                                                (error response-string))))
                                (if callback (apply callback response cbargs)
                                  response)))))
     (when openai-enable-log
@@ -1031,8 +1031,9 @@ Can be used when failed to recvice response."
             (let* ((data (decode-coding-string (match-string 1) 'utf-8))
                    (choices (alist-get
                              'choices
-                             (json-read-from-string
-                              data)))
+                             (condition-case err
+                                 (json-read-from-string data)
+                               (error nil))))
                    (choices0 (if (> (length choices) 0)
                                  (seq-elt choices 0)))
                    (finish-reason (alist-get 'finish_reason choices0))
