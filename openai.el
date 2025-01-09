@@ -954,10 +954,14 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   (setq-local openai-chat-file nil)
   (setq-local openai-chat-default-args (copy-tree openai-chat-default-args))
 
-  (setq-local openai-chat-waiting-response? nil)
+  (openai-chat--update-chat-status nil)
 
   (openai-chat-system-say openai-chat-initial-system-content)
   (openai-chat-set-io-prompt))
+
+(defun openai-chat--update-chat-status (b)
+  (setq-local openai-chat-waiting-response? b)
+  (force-mode-line-update))
 
 (defun openai-chat-set-io-prompt (&optional non-user)
   "Set prompt for user or assistant."
@@ -1088,15 +1092,15 @@ In an interactive call, use prefix argument to specify RESEND."
                                                  (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only)))
                                                          "\n")
                                                  (openai-chat-put-messages message))
-                                               (setq openai-chat-waiting-response? nil)))))
-                (setq openai-chat-waiting-response? t)
+                                               (openai-chat--update-chat-status nil)))))
+                (openai-chat--update-chat-status t)
                 (if (plist-get args :stream)
                     (let ((openai-chat-buffer (current-buffer))
                           (openai-chat-buffer-insert-point (point)))
                       (with-current-buffer (apply #'openai-create-chat-completion-async
                                                   (lambda (s b)
                                                     (with-current-buffer b
-                                                      (setq openai-chat-waiting-response? nil)))
+                                                      (openai-chat--update-chat-status nil)))
                                                   `(,openai-chat-buffer)
                                                   args)
                         (setq-local openai-chat-latest-data-point (point-min)
