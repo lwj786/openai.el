@@ -1039,22 +1039,35 @@ Can be used when failed to recvice response."
                    (finish-reason (alist-get 'finish_reason choices0))
                    (delta (alist-get 'delta choices0))
                    (role (alist-get 'role delta))
-                   (content (alist-get 'content delta)))
+                   (reasoning-content (alist-get 'reasoning_content delta))
+                   (content (alist-get 'content delta))
+                   (update-openai-chat-buffer (lambda (s)
+                                                (setq openai-chat-buffer-insert-point
+                                                      (let ((openai-chat-buffer-insert-point openai-chat-buffer-insert-point))
+                                                        (with-current-buffer openai-chat-buffer
+                                                          (save-excursion
+                                                            (goto-char openai-chat-buffer-insert-point)
+                                                            (insert (apply #'propertize
+                                                                           s
+                                                                           '(read-only t rear-nonsticky (read-only))))
+                                                            (point))))))))
+              (if (zerop (length reasoning-content)) (setq reasoning-content nil))
+              (if (zerop (length content)) (setq content nil))
               (if role
                   (setf (alist-get 'role openai-chat-message) role))
+              (when reasoning-content
+                (if (zerop (length (alist-get 'reasoning_content openai-chat-message)))
+                  (funcall update-openai-chat-buffer "\n「忖」\n"))
+                (setf (alist-get 'reasoning_content openai-chat-message)
+                      (concat (alist-get 'reasoning_content openai-chat-message) reasoning-content))
+                (funcall update-openai-chat-buffer reasoning-content))
               (when content
+                (if (and (zerop (length (alist-get 'content openai-chat-message)))
+                         (> (length (alist-get 'reasoning_content openai-chat-message)) 0))
+                  (funcall update-openai-chat-buffer "\n「1忖」\n"))
                 (setf (alist-get 'content openai-chat-message)
                       (concat (alist-get 'content openai-chat-message) content))
-                (setq openai-chat-buffer-insert-point
-                      (let ((openai-chat-buffer-insert-point openai-chat-buffer-insert-point)
-                            (openai-chat-message openai-chat-message))
-                        (with-current-buffer openai-chat-buffer
-                          (save-excursion
-                            (goto-char openai-chat-buffer-insert-point)
-                            (insert (apply #'propertize
-                                           content
-                                           '(read-only t rear-nonsticky (read-only))))
-                            (point))))))
+                (funcall update-openai-chat-buffer content))
               (if finish-reason
                   (let ((openai-chat-message openai-chat-message))
                     (with-current-buffer openai-chat-buffer
@@ -1086,7 +1099,9 @@ In an interactive call, use prefix argument to specify RESEND."
               (unless resend
                 (openai-chat-put-messages "user" user-input))
               (openai-chat-set-io-prompt t)
-              (let* ((args (append `(:messages ,openai-chat-messages)
+              (let* ((args (append `(:messages ,(mapc (lambda (openai-chat-message-round-n)
+                                                        (assoc-delete-all 'reasoning_content openai-chat-message-round-n))
+                                                      (copy-tree openai-chat-messages t)))
                                    openai-chat-default-args))
                      (response-processor (lambda (response
                                               buffer-or-name position)
@@ -1095,9 +1110,13 @@ In an interactive call, use prefix argument to specify RESEND."
                                                (let* ((message
                                                        (alist-get 'message
                                                                   (seq-elt (alist-get 'choices response) 0)))
-                                                      (content (alist-get 'content message)))
-                                                 (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only)))
-                                                         "\n")
+                                                      (content (alist-get 'content message))
+                                                      (reasoning-content (alist-get 'reasoning_content message)))
+                                                 (if reasoning-content
+                                                     (insert (apply #'propertize
+                                                                    (concat "\n「忖」\n" reasoning-content "\n「1忖」\n")
+                                                                    '(read-only t rear-nonsticky (read-only)))))
+                                                 (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only))))
                                                  (openai-chat-put-messages message))
                                                (openai-chat--update-chat-status nil)))))
                 (openai-chat--update-chat-status t)
@@ -1116,7 +1135,8 @@ In an interactive call, use prefix argument to specify RESEND."
                                     openai-chat-buffer-insert-point openai-chat-buffer-insert-point
 
                                     openai-chat-message (list (list 'role)
-                                                              (list 'content)))
+                                                              (list 'content)
+                                                              (list 'reasoning_content)))
                         (if (and url-http-proxy
                                  (string= "https"
                                           (url-type url-http-target-url)))
@@ -1209,6 +1229,7 @@ As for N, check `openai-chat' for details."
         (while (< i l)
           (let* ((m (seq-elt openai-chat-messages i))
                  (r (alist-get 'role m))
+                 (rc (alist-get 'reasoning_content m))
                  (c (alist-get 'content m)))
             (cond ((string= r "user")
                    (openai-chat-set-io-prompt)
@@ -1217,6 +1238,10 @@ As for N, check `openai-chat' for details."
                                        'rear-nonsticky '(read-only))))
                   ((string= r "assistant")
                    (openai-chat-set-io-prompt t)
+                   (if rc
+                       (insert (apply #'propertize
+                                      (concat "\n「忖」\n" rc "\n「1忖」\n")
+                                      '(read-only t rear-nonsticky (read-only)))))
                    (insert (propertize c
                                        'read-only t
                                        'rear-nonsticky '(read-only))))))
