@@ -930,6 +930,16 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "Prompt for stop."
   :type 'string)
 
+(defcustom openai-chat-cot-start
+  "「忖」"
+  "Start Label for CoT"
+  :type 'string)
+
+(defcustom openai-chat-cot-end
+  "「1忖」"
+  "End Label for CoT"
+  :type 'string)
+
 (defcustom openai-chat-dir
   (concat user-emacs-directory
           "openai/chat/")
@@ -1056,15 +1066,18 @@ Can be used when failed to recvice response."
               (if role
                   (setf (alist-get 'role openai-chat-message) role))
               (when reasoning-content
-                (if (zerop (length (alist-get 'reasoning_content openai-chat-message)))
-                  (funcall update-openai-chat-buffer "\n「忖」\n"))
+                (when (zerop (length (alist-get 'reasoning_content openai-chat-message)))
+                  (funcall update-openai-chat-buffer (concat "\n" openai-chat-cot-start "\n\n"  openai-chat-cot-end "\n"))
+                  (setq openai-chat-buffer-insert-point
+                        (- openai-chat-buffer-insert-point (length openai-chat-cot-end) 2)))
                 (setf (alist-get 'reasoning_content openai-chat-message)
                       (concat (alist-get 'reasoning_content openai-chat-message) reasoning-content))
                 (funcall update-openai-chat-buffer reasoning-content))
               (when content
                 (if (and (zerop (length (alist-get 'content openai-chat-message)))
                          (> (length (alist-get 'reasoning_content openai-chat-message)) 0))
-                  (funcall update-openai-chat-buffer "\n「1忖」\n"))
+                  (setq openai-chat-buffer-insert-point
+                        (+ openai-chat-buffer-insert-point (length openai-chat-cot-end) 2)))
                 (setf (alist-get 'content openai-chat-message)
                       (concat (alist-get 'content openai-chat-message) content))
                 (funcall update-openai-chat-buffer content))
@@ -1114,7 +1127,9 @@ In an interactive call, use prefix argument to specify RESEND."
                                                       (reasoning-content (alist-get 'reasoning_content message)))
                                                  (if reasoning-content
                                                      (insert (apply #'propertize
-                                                                    (concat "\n「忖」\n" reasoning-content "\n「1忖」\n")
+                                                                    (concat "\n" openai-chat-cot-start "\n"
+                                                                            reasoning-content
+                                                                            "\n" openai-chat-cot-end "\n")
                                                                     '(read-only t rear-nonsticky (read-only)))))
                                                  (insert (apply #'propertize content '(read-only t rear-nonsticky (read-only))))
                                                  (openai-chat-put-messages message))
@@ -1240,7 +1255,9 @@ As for N, check `openai-chat' for details."
                    (openai-chat-set-io-prompt t)
                    (if rc
                        (insert (apply #'propertize
-                                      (concat "\n「忖」\n" rc "\n「1忖」\n")
+                                      (concat "\n" openai-chat-cot-start "\n"
+                                              rc
+                                              "\n" openai-chat-cot-end "\n")
                                       '(read-only t rear-nonsticky (read-only)))))
                    (insert (propertize c
                                        'read-only t
