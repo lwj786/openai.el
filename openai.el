@@ -1216,15 +1216,18 @@ If `openai-chat-file' is nil, call `openai-chat-save-as' interactively."
       (openai-chat-save-as openai-chat-file)
     (call-interactively #'openai-chat-save-as)))
 
-(defun openai-chat-continue (file &optional n)
+(defun openai-chat-continue (file &optional n &rest args)
   "Create or switch to chat buffer, load chat file, return the buffer.
 If `openai-chat-messages' is empty or only contain a system content, chat file will be load.
 FILE is a json file saved by `openai-chat-save' or `openai-chat-save-as'.
-As for N, check `openai-chat' for details."
+As for N, check `openai-chat' for details.
+ARGS is used to specify customized `openai-chat' with keywords :openai-chat"
   (interactive (list (read-file-name "Load the chat: "
                                      openai-chat-dir)
                      current-prefix-arg))
-  (with-current-buffer (openai-chat n)
+  (with-current-buffer (funcall (or (plist-get args :openai-chat)
+                                    #'openai-chat)
+                                n)
     (when (and (file-exists-p file)
                (or (= (length openai-chat-messages) 0)
                    (and (= (length openai-chat-messages) 1)
@@ -1298,6 +1301,18 @@ In an interactive call, use numeric prefix arg N to create or switch specified b
                                                         openai-chat-initial-system-content)))
             (openai-chat-mode))))
     buf))
+
+(defmacro openai-chat-customizer (fun
+                                  &rest openai-chat-args)
+  "A helper macro for customize `openai-chat' and `openai-chat-continue'"
+  `(prog1 (defun ,fun (&optional n)
+            (interactive "P")
+            ,(append '(openai-chat n) openai-chat-args))
+     (defun ,(intern (concat (symbol-name fun) "-continue")) (file &optional n &rest args)
+       (interactive (list (read-file-name "Load the chat: "
+                                     openai-chat-dir)
+                          current-prefix-arg))
+       (apply #'openai-chat-continue file n :openai-chat (function ,fun) args))))
 
 
 (provide 'openai)
