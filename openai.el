@@ -1069,15 +1069,17 @@ Can be used when failed to recvice response."
                 (when (zerop (length (alist-get 'reasoning_content openai-chat-message)))
                   (funcall update-openai-chat-buffer (concat "\n" openai-chat-cot-start "\n\n"  openai-chat-cot-end "\n"))
                   (setq openai-chat-buffer-insert-point
-                        (- openai-chat-buffer-insert-point (length openai-chat-cot-end) 2)))
+                        (- openai-chat-buffer-insert-point (length openai-chat-cot-end) 2))
+                  (setq-local out-of-cot? nil))
                 (setf (alist-get 'reasoning_content openai-chat-message)
                       (concat (alist-get 'reasoning_content openai-chat-message) reasoning-content))
                 (funcall update-openai-chat-buffer reasoning-content))
               (when content
-                (if (and (zerop (length (alist-get 'content openai-chat-message)))
-                         (> (length (alist-get 'reasoning_content openai-chat-message)) 0))
+                (when (and (boundp 'out-of-cot?)
+                           (not out-of-cot?))
                   (setq openai-chat-buffer-insert-point
-                        (+ openai-chat-buffer-insert-point (length openai-chat-cot-end) 2)))
+                        (+ openai-chat-buffer-insert-point (length openai-chat-cot-end) 2))
+                  (setq-local out-of-cot? t))
                 (setf (alist-get 'content openai-chat-message)
                       (concat (alist-get 'content openai-chat-message) content))
                 (funcall update-openai-chat-buffer content))
