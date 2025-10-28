@@ -1138,18 +1138,18 @@ In an interactive call, use prefix argument to specify RESEND."
                                                (openai-chat--update-chat-status nil)))))
                 (openai-chat--update-chat-status t)
                 (if (plist-get args :stream)
-                    (let ((openai-chat-buffer (current-buffer))
-                          (openai-chat-buffer-insert-point (point)))
+                    (let ((my-openai-chat-buffer (current-buffer))
+                          (my-openai-chat-buffer-insert-point (point)))
                       (with-current-buffer (apply #'openai-create-chat-completion-async
                                                   (lambda (s b)
                                                     (with-current-buffer b
                                                       (openai-chat--update-chat-status nil)))
-                                                  `(,openai-chat-buffer)
+                                                  `(,my-openai-chat-buffer)
                                                   args)
                         (setq-local openai-chat-latest-data-point (point-min)
 
-                                    openai-chat-buffer openai-chat-buffer
-                                    openai-chat-buffer-insert-point openai-chat-buffer-insert-point
+                                    openai-chat-buffer my-openai-chat-buffer
+                                    openai-chat-buffer-insert-point my-openai-chat-buffer-insert-point
 
                                     openai-chat-message (list (list 'role)
                                                               (list 'content)
