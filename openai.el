@@ -946,6 +946,11 @@ ARGS will override `openai-generate-image-variation-default-args', see `openai-c
   "Default directory for save chat."
   :type 'string)
 
+(defcustom openai-chat-show-func
+  nil
+  "A function to show openai-chat buffer"
+  :type 'function)
+
 (defvar-keymap openai-chat-mode-map
   "C-j" #'openai-chat-send
   "C-x C-s" #'openai-chat-save
@@ -1271,6 +1276,35 @@ ARGS is used to specify customized `openai-chat' with keywords :openai-chat"
       (openai-chat-set-io-prompt)
       (current-buffer))))
 
+(defun openai-chat-show (buffer-or-name)
+  "Show a openai-chat buffer using `openai-chat-show-func',
+`posframe-show' (if available) or `pop-to-buffer'."
+  (interactive (list (read-buffer
+                      "Select Chat Buffer: "
+                      nil t
+                      (lambda (b)
+                        (with-current-buffer (if (consp b) (car b) b)
+                          (derived-mode-p 'openai-chat-mode))))))
+  (let ((show-buffer openai-chat-show-func))
+    (unless show-buffer
+      (setq show-buffer
+            (cond ((fboundp 'posframe-show)
+                   (lambda (b)
+                     (select-frame-set-input-focus
+                      (posframe-show b
+                                     :poshandler #'posframe-poshandler-frame-center
+                                     :width (round (* 0.66 (frame-width)))
+                                     :height (round (* 0.66 (frame-height)))
+                                     :min-width 80
+                                     :min-height 24
+                                     :internal-border-width 3
+                                     :internal-border-color "purple"
+                                     :cursor t
+                                     :window-point (with-current-buffer b (point))
+                                     :respect-mode-line t))))
+                  (t #'pop-to-buffer))))
+    (funcall show-buffer buffer-or-name)))
+
 (defun openai-chat (&optional n name
                               &rest args)
   "Create or switch to OpenAI chat buffer, and return the buffer.
@@ -1284,7 +1318,7 @@ In an interactive call, use numeric prefix arg N to create or switch specified b
                                              name
                                              n)
                                    (format "OpenAI/%s" name)))))
-    (pop-to-buffer buf)
+    (openai-chat-show buf)
     (with-current-buffer buf
       (or (derived-mode-p 'openai-chat-mode)
           (let ((openai-api-srv (or (plist-get args :api-srv)
